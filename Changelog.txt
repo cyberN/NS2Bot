@@ -1,4 +1,8 @@
-
+Version 0.5
+	Fixed to work with NS2 build 229
+	Changed pathfinding to use BotGorge's BotAIPathMixin by ZycaR
+	Several small improvements
+	
 Version 0.4
 
   Improved fighting skills
