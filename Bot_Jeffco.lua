@@ -18,9 +18,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// Edited by Sebastian J. (borstymail@googlemail.com)
+//
 //=============================================================================
 
-Script.Load("lua/PathingMixin.lua")
+Script.Load("lua/BotAIPathMixin.lua")
 
 class 'BotJeffco' (Bot)
 
@@ -30,16 +32,48 @@ BotJeffco.kBotNames = {
     "Welles (bot)", "Vencill (bot)", "Schoenberg (bot)", "Toll (bot)"
 }
 BotJeffco.kOrder = enum({ "Attack", "Construct", "Move", "Look", "None" })
-BotJeffco.kDebugMode = true
+BotJeffco.kDebugMode = false
 BotJeffco.kRange = 30
 BotJeffco.kRepairRange = 10
 BotJeffco.kMaxPitch = 89
 BotJeffco.kMinPitch = -89
 
+local kTargetReachedRange = 0.8
+local kNextPathPointRange = 1.75
+local kMoveTimeout = 20
+
 function BotJeffco:Initialize()
 
-    InitMixin(self, PathingMixin)
+    InitMixin(self, BotAIPathMixin)
 
+end
+
+function BotJeffco:Jump()
+	self.move.commands = bit.bor(self.move.commands, Move.Jump)
+end
+
+function BotJeffco:FindPickupable(className)
+	local player = self:GetPlayer()
+    local nearbyItems = GetEntitiesWithMixinWithinRangeAreVisible("Pickupable", player:GetEyePos(), 10, true)
+    local closestPickup = nil
+    local closestDistance = Math.infinity
+    for i, nearby in ipairs(nearbyItems) do
+    
+        if nearby:GetIsValidRecipient(player) and not ( className ~= nil and not nearby:isa(className) ) then
+        
+            local nearbyDistance = (nearby:GetOrigin() - toPosition):GetLengthSquared()
+            if nearbyDistance < closestDistance then
+            
+                closestPickup = nearby
+                closestDistance = nearbyDistance
+            
+            end
+            
+        end
+        
+    end
+    
+    return closestPickup
 end
 
 function BotJeffco:GetInfantryPortal()
@@ -60,7 +94,7 @@ function BotJeffco:GetHasCommander()
     
     for i = 0, count - 1 do
         local commander = ents:GetEntityAtIndex(i)
-        if commander:GetTeamNumber() == teamNumber then
+        if commander ~= nil and commander:GetTeamNumber() == teamNumber then
             return true
         end
     end
@@ -85,7 +119,6 @@ function BotJeffco:GetCommandStation()
     end
     
     return closestCommandStation
-
 end
 
 function BotJeffco:GetMoblieAttackTarget()
@@ -99,7 +132,7 @@ function BotJeffco:GetMoblieAttackTarget()
                 BotJeffco.kRange, 
                 true,
                 { kMarineMobileTargets },
-                { PitchTargetFilter(player,  -BotJeffco.kMaxPitch, BotJeffco.kMaxPitch), CloakTargetFilter(), CamouflageTargetFilter() })
+                { PitchTargetFilter(player,  -BotJeffco.kMaxPitch, BotJeffco.kMaxPitch), CloakTargetFilter() })
         end
         if player:isa("Alien") then
             player.mobileTargetSelector = TargetSelector():Init(
@@ -128,7 +161,7 @@ function BotJeffco:GetStaticAttackTarget()
                 BotJeffco.kRange, 
                 true,
                 { kMarineStaticTargets },
-                { CloakTargetFilter(), CamouflageTargetFilter() })
+                { CloakTargetFilter() })
         end
         if player:isa("Alien") then
             player.staticTargetSelector = TargetSelector():Init(
@@ -156,11 +189,13 @@ function BotJeffco:GetRepairTarget()
     local ents = Shared.GetEntitiesWithClassname("Marine")    
     local count = ents:GetSize()
     for i = 0, count - 1 do
-        local marine = ents:GetEntityAtIndex(i)
-        local distance = (marine:GetOrigin() - eyePos):GetLengthSquared()
-        if distance < allowedDistance and marine:GetIsAlive() and marine:GetArmor() < marine:GetMaxArmor() and (repairTarget == nil or distance < closestDistance) then
-            repairTarget, closestDistance = marine, distance
-        end
+		local marine = ents:GetEntityAtIndex(i)
+		if (marine ~= nil) then
+			local distance = (marine:GetOrigin() - eyePos):GetLengthSquared()
+			if distance < allowedDistance and marine:GetIsAlive() and marine:GetArmor() < marine:GetMaxArmor() and (repairTarget == nil or distance < closestDistance) then
+				repairTarget, closestDistance = marine, distance
+			end
+		end
     end
     
     if repairTarget then
@@ -171,10 +206,12 @@ function BotJeffco:GetRepairTarget()
     count = ents:GetSize()
     for i = 0, count - 1 do
         local powerPoint = ents:GetEntityAtIndex(i)
-        local distance = (powerPoint:GetOrigin() - eyePos):GetLengthSquared()
-        if distance < allowedDistance and powerPoint:GetIsSocketed() and powerPoint:GetHealthScalar() < 1. and (repairTarget == nil or distance < closestDistance) then
-            repairTarget, closestDistance = powerPoint, distance
-        end
+		if (powerPoint ~= nil) then
+			local distance = (powerPoint:GetOrigin() - eyePos):GetLengthSquared()
+			if distance < allowedDistance and powerPoint:GetIsSocketed() and powerPoint:GetHealthScalar() < 1. and (repairTarget == nil or distance < closestDistance) then
+				repairTarget, closestDistance = powerPoint, distance
+			end
+		end
     end
 
     return repairTarget
@@ -219,39 +256,84 @@ function BotJeffco:LookAtPoint(toPoint, direct)
     
     // look at target
     if direct then
-        self.move.yaw = GetYawFromVector(direction) - player.baseYaw
+        self.move.yaw = GetYawFromVector(direction) - player:GetBaseViewAngles().yaw
     else
         local turnSpeed = ConditionalValue(player:isa("Alien"), .8, .4)
-        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player.baseYaw, turnSpeed)
+        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player:GetBaseViewAngles().yaw, turnSpeed)
     end
-    self.move.pitch = GetPitchFromVector(direction) - player.basePitch
-    //self.move.pitch = SlerpRadians(self.move.pitch, GetPitchFromVector(direction) - player.basePitch, .4)
+    self.move.pitch = GetPitchFromVector(direction) - player:GetBaseViewAngles().pitch
+    //self.move.pitch = SlerpRadians(self.move.pitch, GetPitchFromVector(direction) - player:GetBaseViewAngles().pitch, .4)
     
 end
 
+function DebugDrawPoint(p, t, r, g, b, a)
+    if not Shared.GetDevMode() then return end
+    DebugLine(p - Vector.xAxis * .3, p + Vector.xAxis * .3, t, r, g, b, a)
+    DebugLine(p - Vector.yAxis * .3, p + Vector.yAxis * .3, t, r, g, b, a)
+    DebugLine(p - Vector.zAxis * .3, p + Vector.zAxis * .3, t, r, g, b, a)
+end
+
+// return true if end reached
 function BotJeffco:MoveToPoint(toPoint, distablePathing)
 
     local player = self:GetPlayer()
 
     // use pathfinder
     if distablePathing == nil then
-        if self:BuildPath(player:GetEyePos(), toPoint) then
-            local points = self:GetPoints()
-            if points then
-                toPoint = points[1]
+        if self:CheckTarget(player:GetOrigin(), toPoint) then
+            
+            if self.nextPathPoint == nil or (player:GetOrigin() - self.nextPathPoint):GetLengthXZ() < kTargetReachedRange then
+            
+                // can't find next path point
+                if not self:FindNextAIPathPoint(player:GetOrigin(), kNextPathPointRange) then
+                    // reset path to calculate new destination
+                    //Print("MoveToPoint cant find next point")
+                    self:ResetAIPath()
+                    return true
+                end
+
+                // target is reached (by distance or last path point is reached)
+                self.distance = (player:GetOrigin() - toPoint):GetLengthXZ()
+                if (self.distance < kTargetReachedRange or self:RemainingAIPathPoint() < 1) then
+                    // pick another target in next think cycle
+                    //Print("MoveToPoint distance small or RemainingAIPathPoint < 1")
+                    self:ResetAIPath()
+                    return true
+                end 
+
+                // next point to get to
+                self.nextPathPoint = self:CurrentAIPathPoint()
+                DebugDrawPoint(self.nextPathPoint, 2, 1, 0, 1, 1)
+                
             end
-            if table.maxn(points) > 1 and math.random() < 0.9 and (player:GetEyePos() - toPoint):GetLengthSquared() < 4 then
-                toPoint = points[2]
-            end
+            
+            // look at target
+            self:LookAtPoint(self.nextPathPoint)
+            
+            // walk forwards
+            self.move.move.z = 1
+            return false
+        else
+            self.nextPathPoint = nil
+            return true
         end
+    else
+        self.nextPathPoint = nil
+        
+        // look at target
+        self:LookAtPoint(toPoint)
+        
+        // walk forwards
+        self.move.move.z = 1
+        
+        return false
     end
     
-    // look at target
-    self:LookAtPoint(toPoint)
-    
-    // walk forwards
-    self.move.move.z = 1
 end
+
+//function BotJeffco:PickupState()
+//	//TODO implement
+//end
 
 function BotJeffco:TriggerAlerts()
 
@@ -260,7 +342,7 @@ function BotJeffco:TriggerAlerts()
         return
     end
     
-    if self.lastAlertTime and self.currentTime - self.lastAlertTime < 30 then
+    if self.lastAlertTime and self.currentTime - self.lastAlertTime < 15 then
         return
     end
     
@@ -270,29 +352,43 @@ function BotJeffco:TriggerAlerts()
     
     // ask for for medpack
     if player:GetHealthScalar() < .4 then
+	
         self.lastAlertTime = self.currentTime
-        if math.random() < .5 then
-        // TODO: consider armory distance
-            player:PlaySound(marineRequestSayingsSounds[2])
-            player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedMedpack, player)
-        end
+		
+		// TODO check for nearby medpacks
+		local pickupable = self:FindPickupable("MedPack")
+		if pickupable ~= nil then
+			Print("Player found a medpack to pickup")
+		else
+			if math.random() < .5 then
+				// TODO: consider armory distance
+				//player:PlaySound(marineRequestSayingsSounds[2])
+				player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedMedpack, player)
+			end
+		end
     end
     
     // ask for ammo pack
-    if self:GetAmmoScalar() < .6 then
+    if self:GetAmmoScalar() < .5 then
         self.lastAlertTime = self.currentTime
-        if math.random() < .5 then
-        // TODO: consider armory distance
-            player:PlaySound(marineRequestSayingsSounds[3])
-            player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedAmmo, player)
-        end
+		
+		local pickupable = self:FindPickupable("AmmoPack")
+		if pickupable ~= nil then
+			Print("Player found an ammopack to pickup")
+		else
+			if math.random() < .5 then
+				// TODO: consider armory distance
+				//player:PlaySound(marineRequestSayingsSounds[3])
+				player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedAmmo, player)
+			end
+		end
     end
     
     // ask for orders
     if not self.lastOrderTime or self.currentTime - self.lastOrderTime > 360 then
         self.lastAlertTime = self.currentTime
         if math.random() < .5 then
-            player:PlaySound(marineRequestSayingsSounds[4])
+            //player:PlaySound(marineRequestSayingsSounds[4])
             player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedOrder, player)
         end
     end
@@ -302,12 +398,13 @@ end
 function BotJeffco:UpdateOrder()
 
     local player = self:GetPlayer()
+	
     self.orderType = BotJeffco.kOrder.None
 
     // #1 attack opponent players / mobile objects
     local target = self:GetMoblieAttackTarget()
     if target then
-        player:GiveOrder(kTechId.Attack, target:GetId(), target:GetEngagementPoint(), nil, true, true)
+        //player:GiveOrder(kTechId.Attack, target:GetId(), target:GetEngagementPoint(), nil, true, true)
         self.orderType = BotJeffco.kOrder.Attack
         self.orderTarget = target
         self.lastOrderTime = self.currentTime
@@ -315,49 +412,51 @@ function BotJeffco:UpdateOrder()
     end
 
     // #2 follow commander orders
-    local order = player:GetCurrentOrder()
-    if order then
-        local orderType = order:GetType()
-        local orderTarget = Shared.GetEntity(order:GetParam())
-        if orderTarget then
-            if orderType == kTechId.Attack then
-                if not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed() then
-                    self.orderType = BotJeffco.kOrder.Attack
-                    self.orderLocation = orderTarget:GetEngagementPoint()
+    if player.GetCurrentOrder then
+		local order = player:GetCurrentOrder()
+        if order then
+            local orderType = order:GetType()
+            local orderTarget = Shared.GetEntity(order:GetParam())
+            if orderTarget then
+                if orderType == kTechId.Attack then
+                    if not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed() then
+                        self.orderType = BotJeffco.kOrder.Attack
+                        self.orderLocation = orderTarget:GetEngagementPoint()
+                        self.orderTarget = orderTarget
+                        self.lastOrderTime = self.currentTime
+                        return
+                    end
+                end
+                if orderType == kTechId.Construct then
+                    self.orderType = BotJeffco.kOrder.Construct
                     self.orderTarget = orderTarget
                     self.lastOrderTime = self.currentTime
                     return
                 end
             end
-            if orderType == kTechId.Construct then
-                self.orderType = BotJeffco.kOrder.Construct
-                self.orderTarget = orderTarget
-                self.lastOrderTime = self.currentTime
-                return
+            local orderLocation = order:GetLocation()
+            if orderLocation then
+                if orderLocation ~= self.commanderOrderLocation then
+                    self.orderType = BotJeffco.kOrder.Move
+                    self.orderLocation = orderLocation
+                    self.lastOrderTime = self.currentTime
+                    self.commanderOrderLocation = orderLocation
+                    self.commanderOrderLocationReached = false
+                    return
+                end
             end
-        end
-        local orderLocation = order:GetLocation()
-        if orderLocation then
-            if orderLocation ~= self.commanderOrderLocation then
-                self.orderType = BotJeffco.kOrder.Move
-                self.orderLocation = orderLocation
-                self.lastOrderTime = self.currentTime
-                self.commanderOrderLocation = orderLocation
-                self.commanderOrderLocationReached = false
-                return
+            if self.commanderOrderLocation and not self.commanderOrderLocationReached then
+                if (player:GetEyePos() - self.commanderOrderLocation):GetLengthSquared() < 5 then
+                    self.commanderOrderLocationReached = true
+                else
+                    self.orderType = BotJeffco.kOrder.Move
+                    self.orderLocation = self.commanderOrderLocation
+                    self.lastOrderTime = self.currentTime
+                    return
+                end
             end
-        end
-        if self.commanderOrderLocation and not self.commanderOrderLocationReached then
-            if (player:GetEyePos() - self.commanderOrderLocation):GetLengthSquared() < 5 then
-                self.commanderOrderLocationReached = true
-            else
-                self.orderType = BotJeffco.kOrder.Move
-                self.orderLocation = self.commanderOrderLocation
-                self.lastOrderTime = self.currentTime
-                return
-            end
-        end
-    end    
+        end    
+    end
     
     // #3 repair objects near by?
     target = self:GetRepairTarget()
@@ -371,7 +470,7 @@ function BotJeffco:UpdateOrder()
     // #4 attack stationary objects
     target = self:GetStaticAttackTarget()
     if target then
-      player:GiveOrder(kTechId.Attack, target:GetId(), target:GetEngagementPoint(), nil, true, true)
+      //player:GiveOrder(kTechId.Attack, target:GetId(), target:GetEngagementPoint(), nil, true, true)
       self.orderType = BotJeffco.kOrder.Attack
       self.orderTarget = target
       self.lastOrderTime = self.currentTime
@@ -383,7 +482,7 @@ end
 function BotJeffco:StateTrace(name)
 
   if BotJeffco.kDebugMode and self.stateName ~= name then
-    Print("%s", name)
+    Print("%s %s", self:GetPlayer():GetClassName(), name)
     self.stateName = name
   end
 
@@ -404,8 +503,8 @@ function BotJeffco:OnThink(deltaTime)
     // set default move
     local player = self:GetPlayer()
     local move = Move()
-    move.yaw = player:GetAngles().yaw - player.baseYaw // keep the current yaw/pitch
-    move.pitch = player:GetAngles().pitch - player.basePitch
+    move.yaw = player:GetAngles().yaw - player:GetBaseViewAngles().yaw // keep the current yaw/pitch
+    move.pitch = player:GetAngles().pitch - player:GetBaseViewAngles().pitch
     self.move = move
     
     // use a state machine to generate a move
@@ -649,6 +748,8 @@ function BotJeffco:RandomWalkState()
     local player = self:GetPlayer()
     if self.randomWalkTarget == nil then
 
+		// TODO find proper random targets :)
+	
         self.randomWalkTarget = player:GetEyePos()
         self.randomWalkTarget.x = self.randomWalkTarget.x + math.random(-4, 4)
         self.randomWalkTarget.z = self.randomWalkTarget.z + math.random(-4, 4)
@@ -668,9 +769,8 @@ function BotJeffco:RandomWalkState()
 
     end
 
-    self:MoveToPoint(self.randomWalkTarget)
-    
-    if (player:GetEyePos() - self.randomWalkTarget):GetLengthSquared() < 4 or self.stateTime > 20 then
+	// TODO ugly to have more or less the same code as in MoveState here
+    if self:MoveToPoint(self.randomWalkTarget) or self.stateTime > kMoveTimeout then
         self.randomWalkTarget = nil
         return self.IdleState
     end
@@ -696,20 +796,20 @@ function BotJeffco:MoveState()
 
     self:StateTrace("move")
   
-    // move to target
-    self:MoveToPoint(self.orderLocation)
-  
     // target reached?
-    local player = self:GetPlayer()
-    if self.stateTime > 1 and ((player:GetEyePos() - self.orderLocation):GetLengthSquared() < 4.5 or self.stateTime > 5) then
+    if self:MoveToPoint(self.orderLocation) or self.stateTime > kMoveTimeout then
         return self.IdleState
     end
     
-    // jump?
-    local player = self:GetPlayer()
-    if math.random() < ConditionalValue(player:isa("Alien"), .2, .05) then
-        self.move.commands = bit.bor(self.move.commands, Move.Jump)
-    end
+	if self.nextPathPointLast ~= self.nextPathPoint then 
+		self.nextPathPointLast = self.nextPathPoint
+		self.nextPathPointEnterTime = self.currentTime
+	end
+	
+	// try jumping when waypoint hasn't changed for 2 seconds, or randomly :]
+	if (self.currentTime - self.nextPathPointEnterTime) > 2 or math.random() < ConditionalValue(self:GetPlayer():isa("Alien"), .1, .01) then
+		self:Jump()
+	end
 
     return self.MoveState
 end
@@ -756,7 +856,6 @@ function BotJeffco:AttackState()
 
     // attack?
     if self.orderType ~= BotJeffco.kOrder.Attack then
-        //return self.RecoverState
         return self.IdleState
     end
     local attackTarget = self.orderTarget
@@ -789,7 +888,7 @@ function BotJeffco:AttackState()
     if activeWeapon and activeWeapon:isa("Axe") then
         melee = true
         local engagementPoint = attackTarget:GetEngagementPoint()
-        local allowedDistance = 5
+        local allowedDistance = 3
         if attackTarget:isa("Hive") then
             allowedDistance = 10
             engagementPoint = attackTarget:GetOrigin()
@@ -819,11 +918,11 @@ function BotJeffco:AttackState()
     end
 
     // look at attack target
-    local targetPosition = attackTarget:GetEngagementPoint()
+    local targetPosition = attackTarget:GetOrigin()
     if activeWeapon and activeWeapon:isa("ClipWeapon") then
-        targetPosition.x = targetPosition.x + (math.random() - 0.5) * 2
-        targetPosition.y = targetPosition.y + (math.random() - 0.5) * 2
-        targetPosition.z = targetPosition.z + (math.random() - 0.5) * 2
+        targetPosition.x = targetPosition.x + (math.random() - 0.5) * 1.1
+        targetPosition.y = targetPosition.y + (math.random() - 0.5) * 1.1
+        targetPosition.z = targetPosition.z + (math.random() - 0.5) * 1.1
     end
     self:LookAtPoint(targetPosition, melee)
 

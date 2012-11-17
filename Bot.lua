@@ -18,12 +18,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// Edited by Sebastian J. (borstymail@googlemail.com)
+//
 //=============================================================================
 
 class 'Bot'
 
+Script.Load("lua/TargetCache.lua")
+
 function Bot:GetPlayer()
-    return self.client:GetControllingPlayer()
+    
+    local player = self.client:GetControllingPlayer()
+    
+    if not HasMixin(player, "TargetCache") then
+        InitMixin(player, TargetCacheMixin)
+    end
+
+    return player
+end
+
+function Bot:GetIsFlying()
+    // TODO check for lerk or jetpack?
+    return false
 end
 
 //=============================================================================
