@@ -37,7 +37,7 @@ BotJeffco.kRepairRange = 10
 BotJeffco.kMaxPitch = 89
 BotJeffco.kMinPitch = -89
 
-local kTargetReachedRange = 0.8
+local kTargetReachedRange = 0.5
 local kNextPathPointRange = 1.75
 local kMoveTimeout = 20
 
@@ -53,6 +53,7 @@ end
 
 function BotJeffco:FindPickupable(className)
 	local player = self:GetPlayer()
+	local playerPos = player:GetOrigin()
     local nearbyItems = GetEntitiesWithMixinWithinRangeAreVisible("Pickupable", player:GetEyePos(), 10, true)
     local closestPickup = nil
     local closestDistance = Math.infinity
@@ -60,16 +61,14 @@ function BotJeffco:FindPickupable(className)
     
         if nearby:GetIsValidRecipient(player) and not ( className ~= nil and not nearby:isa(className) ) then
         
-            local nearbyDistance = (nearby:GetOrigin() - toPosition):GetLengthSquared()
+            local nearbyDistance = (nearby:GetOrigin() - playerPos):GetLengthSquared()
             if nearbyDistance < closestDistance then
             
                 closestPickup = nearby
                 closestDistance = nearbyDistance
             
             end
-            
         end
-        
     end
     
     return closestPickup
@@ -283,27 +282,31 @@ function BotJeffco:MoveToPoint(toPoint, distablePathing)
             
             if self.nextPathPoint == nil or (player:GetOrigin() - self.nextPathPoint):GetLengthXZ() < kTargetReachedRange then
             
-                // can't find next path point
+                // look for next path point
+				// if we can't find it, reset path to calculate new destination
                 if not self:FindNextAIPathPoint(player:GetOrigin(), kNextPathPointRange) then
-                    // reset path to calculate new destination
                     //Print("MoveToPoint cant find next point")
                     self:ResetAIPath()
                     return true
                 end
 
-                // target is reached (by distance or last path point is reached)
                 self.distance = (player:GetOrigin() - toPoint):GetLengthXZ()
-                if (self.distance < kTargetReachedRange or self:RemainingAIPathPoint() < 1) then
-                    // pick another target in next think cycle
+				
+                // if target is reached (by distance) pick another target in next think cycle
+                if (self.distance < kTargetReachedRange) then
                     //Print("MoveToPoint distance small or RemainingAIPathPoint < 1")
                     self:ResetAIPath()
                     return true
-                end 
-
-                // next point to get to
-                self.nextPathPoint = self:CurrentAIPathPoint()
+				end
+				
+				// set next path point to current point, otherwise set to actual destination
+				if (self:RemainingAIPathPoint() > 0) then
+					self.nextPathPoint = self:CurrentAIPathPoint()
+				else
+					self.nextPathPoint = toPoint
+				end
+				
                 DebugDrawPoint(self.nextPathPoint, 2, 1, 0, 1, 1)
-                
             end
             
             // look at target
