@@ -31,7 +31,6 @@ BotJeffco.kBotNames = {
     "Welles (bot)", "Vencill (bot)", "Schoenberg (bot)", "Toll (bot)"
 }
 BotJeffco.kOrder = enum({ "Attack", "Construct", "Move", "Look", "None" })
-BotJeffco.kDebugMode = false
 BotJeffco.kRange = 30
 BotJeffco.kRepairRange = 10
 BotJeffco.kMaxPitch = 89
@@ -242,6 +241,19 @@ function BotJeffco:GetAmmoScalar()
         return 1
     end
     return ammo / maxAmmo
+end
+
+local kDebugLinePause = 0.25
+function BotJeffco:DebugDrawLineOfSight()
+    if not Shared.GetDevMode() then return end
+	if (self.lastDebugLine == nil or self.lastDebugLine < Shared.GetTime()) then
+		self.lastDebugLine = Shared.GetTime() + kDebugLinePause
+		
+		local viewPos = self:GetPlayer():GetEyePos()
+		local viewVec = self:GetPlayer():GetViewAngles():GetCoords().zAxis
+		
+		DebugLine(viewPos, viewPos + viewVec * 3, kDebugLinePause, 1, 0.5, 0, 1)
+	end
 end
 
 function BotJeffco:LookAtPoint(toPoint, direct)
@@ -500,9 +512,13 @@ function BotJeffco:UpdateOrder()
 end
 
 function BotJeffco:StateTrace(name)
-	if (self.stateName ~= name) then
-		if BotJeffco.kDebugMode then
-			Print("%s %s", self:GetPlayer():GetClassName(), name)
+	if (not Shared.GetDevMode() && self.stateName ~= name) then
+		if self:GetPlayer():isa("Marine")  then
+			if (self.orderTarget ~= nil) then
+				Print("# %s @ %s", name, self.orderTarget:GetClassName())
+			else
+				Print("# %s", name)
+			end
 			self.stateName = name
 		end
 	end
@@ -542,8 +558,9 @@ function BotJeffco:OnThink(deltaTime)
       self.state = newState
     end
     
+	self:DebugDrawLineOfSight()
+	
     return true
-    
 end
 
 //=============================================================================
@@ -852,7 +869,9 @@ function BotJeffco:ConstructState()
     if self.orderTarget:isa("RoboticsFactory") then
         allowedDistance = 3
     end
-    if (player:GetEyePos() - engagementPoint):GetLength() > allowedDistance then
+	local engagementDistance = (player:GetEyePos() - engagementPoint):GetLengthXZ()
+    if  engagementDistance > allowedDistance then
+		Print( "Engagement distance: " .. engagementDistance )
         self.orderLocation = engagementPoint
 		self.targetReachedRange = allowedDistance * 0.75
         return self.MoveState
@@ -860,12 +879,15 @@ function BotJeffco:ConstructState()
   
     // timeout?
     if self.stateTime > 20 then
+		Print( "Timeout: " .. engagementPoint )
         self.orderLocation = engagementPoint
         return self.MoveState
     end
   
+	// self.orderTarget:GetOrigin()
+  
     // look at build object
-    self:LookAtPoint(self.orderTarget:GetOrigin(), true)
+    self:LookAtPoint(engagementPoint, true)
 
     // construct!
     self.move.commands = bit.bor(self.move.commands, Move.Use)
