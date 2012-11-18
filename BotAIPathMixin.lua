@@ -29,94 +29,88 @@ function BotAIPathMixin:IsAIPathValid()
 end
 
 function BotAIPathMixin:RemainingAIPathPoint()
+	if (self.pathPointIndex < 0) then
+		return 0
+	end
     return (#(self.pathPoints) - self.pathPointIndex)
 end
 
 function BotAIPathMixin:CurrentAIPathPoint()
-    if self:IsAIPathValid() then
-        //Print( "  point index " .. self.pathPointIndex )
+	if (self.pathPointIndex < 0) then
+		return self.currentDst
+	end
+    if (self:IsAIPathValid()) then
         return self.pathPoints[self.pathPointIndex]
     else    
         return nil
     end
 end
 
+local kDstChangeMaximum = 0.1
+local kPlayerPosChangeMaximum = 1.0
+
+function BotAIPathMixin:GetTargetDistance()
+	self.lastDistance = (self:GetPlayer():GetOrigin() - self.currentDst):GetLengthXZ()
+	return self.lastDistance
+end
+
 //Added by borsty
-// Returns true when there's a path we can follow
-function BotAIPathMixin:CheckTarget(src, dst)
+// Check for navigation path
+// When player position or destination has been changed, calculates new path
+// Returns distance to destination, -1 on invalid path
+function BotAIPathMixin:CheckTarget(dst)
     
-    // destination already reached?
-    if self:IsAIPathValid() then
-    
-		if (self.lastSrc == nil) then self.lastSrc = src end
+	// pre conditioning
+	if (self.lastPos == nil) then
+		self.lastPos = Vector(0,0,0)
+	end
+	if (self.currentDst == nil) then
+		self.currentDst = Vector(0,0,0)
+	end
 	
-        local targetDist = (self.lastSrc - src):GetLengthXZ()
-        self.lastSrc = src
-        
-        if targetDist > 1 then
-            //Print("CheckTarget - Path valid, Player probably teleported, generating for " .. self:GetPlayer():GetClassName() .. " distance to last pos being " .. targetDist)
-            // build new path
-            if self:CreateAIPath(src, dst) then
-                self.targetPoint = dst
-                return true
-            end
-            return false
-        end
-		
-        targetDist = (src - dst):GetLengthXZ()
-		
-        if targetDist < 0.1 then
-            //Print("CheckTarget - Path valid, Target reached for " .. self:GetPlayer():GetClassName() .. " distance to target being " .. targetDist)
-            self.targetPoint = nil
-            self:ResetAIPath()
-            return false
+	local playerPos = self:GetPlayer():GetOrigin()
+	
+	// path valid? player teleported? destination changed?
+	local pathValid = self:IsAIPathValid() and
+		((playerPos - self.lastPos):GetLengthXZ() < kPlayerPosChangeMaximum) and
+		((dst - self.currentDst):GetLengthXZ() < kDstChangeMaximum)
+	
+	// build new path when needed
+	if (not pathValid) then
+        if self:CreateAIPath(playerPos, dst) then
+			self.lastPos = playerPos
+			self.currentDst = dst
+            return self:GetTargetDistance()
+		else
+			self.lastPos = nil
+			self.currentDst = nil
         end
         
-        
-        targetDist = (self.targetPoint - dst):GetLengthXZ()
-        
-        if targetDist > 0.25 then
-            //Print("CheckTarget - Path valid, different target, generating for " .. self:GetPlayer():GetClassName() .. " distance being " .. targetDist)
-            // build new path
-            if self:CreateAIPath(src, dst) then
-                self.targetPoint = dst
-                return true
-            end
-            return false
-        end
-    
-        return true
-    else
-       
-        //Print("CheckTarget - Path invalid, generating for " .. self:GetPlayer():GetClassName())
-        
-        // build new path
-        if self:CreateAIPath(src, dst) then
-            self.targetPoint = dst
-            return true
-        end
-        
-        return false
-    end
+        return -1
+	end
+	
+	// update currentSrc
+	self.lastPos = playerPos
+	
+	// calculate distance left
+	return self:GetTargetDistance()
 end
 
 function BotAIPathMixin:CreateAIPath(src, dst)
-
-    if self:IsAIPathValid() then
-        self:ResetAIPath()
-    end
-    
-    // generate a new AI path
-    self.pathPoints = GeneratePath(src, dst)    
-    self.pathDistance = GetPointDistance(self.pathPoints)
-    self.pathPointIndex = 1
-    
-    // draw path in 'dev' mode
-    //if Shared.GetDevMode() and (self.pathPoints ~= nil) then
-    //    self:DrawAIPath(10)
-    //end
-    
-    return (self.pathPoints ~= nil)
+	
+	self:ResetAIPath()
+	
+	// generate a new AI path
+	self.pathPoints = GeneratePath(src, dst)    
+	self.pathDistance = GetPointDistance(self.pathPoints)
+	self.pathPointIndex = 1
+	
+	// draw path in 'dev' mode
+	//if Shared.GetDevMode() and (self.pathPoints ~= nil) then
+	//    self:DrawAIPath(10)
+	//end
+	
+	return self:IsAIPathValid()
 end
 
 function BotAIPathMixin:FindClosestAIPathPoint(location)
@@ -142,20 +136,40 @@ function BotAIPathMixin:FindClosestAIPathPoint(location)
     return closestIndex
 end
 
-function BotAIPathMixin:FindNextAIPathPoint(location, range)
+local kNextAiPathPointRange = 1.75
+local kNextAiPathPointReachedRange = 0.33
 
-    local nextIndex = self:FindClosestAIPathPoint(location)
+// Find the next navigation point
+// call after self:CheckTarget()!
+// returns location of next point or nil when no active path
+function BotAIPathMixin:FindNextAIPathPoint()
+
+	// destination has already been reached, see below
+	if (self.pathPointIndex < 0) then
+		return self.currentDst
+	end
+
+	local playerPos = self:GetPlayer():GetOrigin()
+	local distance = (self:CurrentAIPathPoint() - playerPos):GetLengthXZ()
+	
+	// current path point not reached yet
+	if (distance > kNextAiPathPointReachedRange) then
+		return self:CurrentAIPathPoint()
+	end
+
+    // OLD: local nextIndex = self:FindClosestAIPathPoint(playerPos)
+	local nextIndex = self.pathPointIndex
     local nextPoint = self.pathPoints[nextIndex]
     
     while (nextPoint ~= nil) do
     
         // calculate and check distance
-        local ptDir = location - nextPoint
-        local ptLength = ptDir:GetLength()
+        local ptDir = playerPos - nextPoint
+        local ptLength = ptDir:GetLengthXZ()
         
-        if (ptLength >= range) then
+        if (ptLength >= kNextAiPathPointRange) then
             self.pathPointIndex = nextIndex
-            return true
+            return nextPoint
         end
         
         // move to next path point
@@ -163,13 +177,9 @@ function BotAIPathMixin:FindNextAIPathPoint(location, range)
         nextPoint = self.pathPoints[nextIndex]
     end
     
-    // return to end of path if it's still in range
-    if (nextIndex >= #(self.pathPoints)) then 
-        self.pathPointIndex = #(self.pathPoints)
-        return true
-    end
-    
-    return false
+	// destination reached, return destination
+	self.pathPointIndex = -1
+	return self.currentDst
 end
 
 function BotAIPathMixin:DrawAIPath(duration)

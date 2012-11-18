@@ -37,7 +37,6 @@ BotJeffco.kRepairRange = 10
 BotJeffco.kMaxPitch = 89
 BotJeffco.kMinPitch = -89
 
-local kTargetReachedRange = 0.5
 local kNextPathPointRange = 1.75
 local kMoveTimeout = 20
 
@@ -45,6 +44,7 @@ function BotJeffco:Initialize()
 
     InitMixin(self, BotAIPathMixin)
 
+	self.targetReachedRange = 1.0
 end
 
 function BotJeffco:Jump()
@@ -256,12 +256,10 @@ function BotJeffco:LookAtPoint(toPoint, direct)
     if direct then
         self.move.yaw = GetYawFromVector(direction) - player:GetBaseViewAngles().yaw
     else
-        local turnSpeed = ConditionalValue(player:isa("Alien"), .8, .4)
-        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player:GetBaseViewAngles().yaw, turnSpeed)
+        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player:GetBaseViewAngles().yaw, 0.75)
     end
     self.move.pitch = GetPitchFromVector(direction) - player:GetBaseViewAngles().pitch
-    //self.move.pitch = SlerpRadians(self.move.pitch, GetPitchFromVector(direction) - player:GetBaseViewAngles().pitch, .4)
-    
+
 end
 
 function DebugDrawPoint(p, t, r, g, b, a)
@@ -272,65 +270,85 @@ function DebugDrawPoint(p, t, r, g, b, a)
 end
 
 // return true if end reached
-function BotJeffco:MoveToPoint(toPoint, distablePathing)
+function BotJeffco:MoveToPoint(toPoint, disablePathing)
 
     local player = self:GetPlayer()
-
+	local playerPos = player:GetOrigin()
+	
     // use pathfinder
-    if distablePathing == nil then
-        if self:CheckTarget(player:GetOrigin(), toPoint) then
-            
-            if self.nextPathPoint == nil or (player:GetOrigin() - self.nextPathPoint):GetLengthXZ() < kTargetReachedRange then
-            
-                // look for next path point
-				// if we can't find it, reset path to calculate new destination
-                if not self:FindNextAIPathPoint(player:GetOrigin(), kNextPathPointRange) then
-                    //Print("MoveToPoint cant find next point")
-                    self:ResetAIPath()
-                    return true
-                end
-
-                self.distance = (player:GetOrigin() - toPoint):GetLengthXZ()
-				
-                // if target is reached (by distance) pick another target in next think cycle
-                if (self.distance < kTargetReachedRange) then
-                    //Print("MoveToPoint distance small or RemainingAIPathPoint < 1")
-                    self:ResetAIPath()
-                    return true
+    if disablePathing == nil then
+	
+		// Returns distance to target, -1 would tell us that it can't be reached
+		local distanceToTarget = self:CheckTarget(toPoint)
+		
+		if (distanceToTarget > 0) then
+			
+			// check destination reached
+			if (distanceToTarget < self.targetReachedRange) then
+				return true
+			end
+			
+			// find next navigation point
+			local nextPoint = self:FindNextAIPathPoint()
+			
+			if (nextPoint == nil) then
+				self:MarinePrint("MoveToPoint cant find next point")
+				self:ResetAIPath()
+                return true
+			end
+			
+			// check when we haven't moved as we pleased in the last second
+			if (self.mAntiStuckPos == nil) then
+				self.mAntiStuckPos = playerPos
+				self.mAntiStuckTime = Shared.GetTime() + 2
+			else
+				if (self.mAntiStuckTime < Shared.GetTime()) then
+					if ((playerPos - self.mAntiStuckPos):GetLengthXZ() < 0.25) then
+						self:MarinePrint("MoveToPoint antistuck distance < 0.25, reset")
+						self:ResetAIPath()
+						self.mAntiStuckPos = nil
+						return true
+					end
+					
+					self.mAntiStuckPos = playerPos
+					self.mAntiStuckTime = Shared.GetTime() + 2
 				end
-				
-				// set next path point to current point, otherwise set to actual destination
-				if (self:RemainingAIPathPoint() > 0) then
-					self.nextPathPoint = self:CurrentAIPathPoint()
-				else
-					self.nextPathPoint = toPoint
-				end
-				
-                DebugDrawPoint(self.nextPathPoint, 2, 1, 0, 1, 1)
-            end
-            
-            // look at target
+			end
+			
+			// debug
+			//if (self.nextPathPoint ~= nextPoint and Shared.GetDevMode()) then
+			//	playerPos.y = nextPoint.y
+			//	DebugLine(playerPos, nextPoint, 5, 1, 0, 0, 1)
+			//end
+			
+			// walk!
+			self.nextPathPoint = nextPoint
             self:LookAtPoint(self.nextPathPoint)
-            
-            // walk forwards
             self.move.move.z = 1
             return false
-        else
-            self.nextPathPoint = nil
-            return true
-        end
-    else
-        self.nextPathPoint = nil
-        
-        // look at target
-        self:LookAtPoint(toPoint)
-        
-        // walk forwards
-        self.move.move.z = 1
-        
-        return false
+		end
+		
+		// can't find target, so tell em we reached it.
+		self:ResetAIPath()
+		return true
+	else
+		self.nextPathPoint = nil
+			
+		// look at target
+		self:LookAtPoint(toPoint)
+		
+		// walk forwards
+		self.move.move.z = 1
+		
+		return false
+	end
+end
+
+function BotJeffco:MarinePrint(txt)
+	if not self:GetPlayer():isa("Marine") then
+        return
     end
-    
+	Print("[MPRINT] "..txt)
 end
 
 //function BotJeffco:PickupState()
@@ -482,12 +500,12 @@ function BotJeffco:UpdateOrder()
 end
 
 function BotJeffco:StateTrace(name)
-
-  if BotJeffco.kDebugMode and self.stateName ~= name then
-    Print("%s %s", self:GetPlayer():GetClassName(), name)
-    self.stateName = name
-  end
-
+	if (self.stateName ~= name) then
+		if BotJeffco.kDebugMode then
+			Print("%s %s", self:GetPlayer():GetClassName(), name)
+			self.stateName = name
+		end
+	end
 end
 
 //=============================================================================
@@ -542,7 +560,7 @@ function BotJeffco:InitialState()
         local name = player:GetName()
         if name and string.find(string.lower(name), string.lower(kDefaultPlayerName)) then
     
-            name = BotJeffco.kBotNames[math.random(1, table.maxn(BotJeffco.kBotNames))]
+            self.name = BotJeffco.kBotNames[math.random(1, table.maxn(BotJeffco.kBotNames))]
             OnCommandSetName(self.client, name)
 
         end
@@ -606,6 +624,7 @@ function BotJeffco:IdleState()
 
     // move order?
     if self.orderType == BotJeffco.kOrder.Move then
+		self.targetReachedRange = .8
         return self.MoveState
     end
     
@@ -651,13 +670,14 @@ function BotJeffco:EnterCommandStationState()
         end
         self.orderLocation = comLocation
         self.move.commands = bit.bor(self.move.commands, Move.Jump)
+		self.targetReachedRange = 0.8
         return self.MoveState
     end
     
     self:LookAtPoint(commandStation:GetOrigin(), true)
     self.move.commands = bit.bor(self.move.commands, Move.Use)
     
-    comLocation.y = comLocation.y + 1    
+    comLocation.y = comLocation.y + 1  
     self:MoveToPoint(comLocation, true)
     
     if math.random() < .2 and (player:GetEyePos() - comLocation):GetLengthSquared() > 3 then
@@ -821,19 +841,20 @@ function BotJeffco:ConstructState()
     self:StateTrace("construct")
     
     // construct?
-    if self.orderType ~= BotJeffco.kOrder.Construct then
+    if (self.orderType ~= BotJeffco.kOrder.Construct) then
         return self.IdleState
     end
 
     // is target reachable?    
     local player = self:GetPlayer()
     local engagementPoint = self.orderTarget:GetEngagementPoint()
-    local allowedDistance = 5
+    local allowedDistance = 2
     if self.orderTarget:isa("RoboticsFactory") then
-        allowedDistance = 7
+        allowedDistance = 3
     end
-    if (player:GetEyePos() - engagementPoint):GetLengthSquared() > allowedDistance then
+    if (player:GetEyePos() - engagementPoint):GetLength() > allowedDistance then
         self.orderLocation = engagementPoint
+		self.targetReachedRange = allowedDistance * 0.75
         return self.MoveState
     end
   
@@ -844,10 +865,13 @@ function BotJeffco:ConstructState()
     end
   
     // look at build object
-    self:LookAtPoint(engagementPoint, true)
+    self:LookAtPoint(self.orderTarget:GetOrigin(), true)
 
     // construct!
     self.move.commands = bit.bor(self.move.commands, Move.Use)
+  
+	// move against!
+	self.move.move.z = 1
   
     return self.ConstructState
 end
@@ -897,6 +921,7 @@ function BotJeffco:AttackState()
         end        
         if (player:GetEyePos() - engagementPoint):GetLengthSquared() > allowedDistance then
             self.orderLocation = engagementPoint
+			self.targetReachedRange = 1.0
             return self.MoveState
         elseif not attackTarget:isa("Hive") then
             self.move.commands = bit.bor(self.move.commands, Move.Crouch)
@@ -909,6 +934,7 @@ function BotJeffco:AttackState()
         local engagementPoint = attackTarget:GetEngagementPoint()
         if (player:GetEyePos() - engagementPoint):GetLengthSquared() > 5 then
             self.orderLocation = engagementPoint
+			self.targetReachedRange = 1.0
             return self.MoveState
         end
     end
@@ -916,6 +942,7 @@ function BotJeffco:AttackState()
     // timeout?
     if self.stateTime > 20 then
         self.orderLocation = attackTarget:GetEngagementPoint()
+		self.targetReachedRange = 1.0
         return self.MoveState
     end
 
