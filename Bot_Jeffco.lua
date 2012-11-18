@@ -512,7 +512,7 @@ function BotJeffco:UpdateOrder()
 end
 
 function BotJeffco:StateTrace(name)
-	if (not Shared.GetDevMode() && self.stateName ~= name) then
+	if (Shared.GetDevMode() and self.stateName ~= name) then
 		if self:GetPlayer():isa("Marine")  then
 			if (self.orderTarget ~= nil) then
 				Print("# %s @ %s", name, self.orderTarget:GetClassName())
