@@ -28,7 +28,7 @@ greetings[4] = "Uh oh! <n> has join :O."
 
 local chatBots = { }
 
-function Bot_MarineMixin:__initmixin()
+function ChatBot_Mixin:__initmixin()
 	self.nextRandomChat = Shared.GetTime() + math.random(20) + 10
 	table.insert(chatBots, self)
 end
