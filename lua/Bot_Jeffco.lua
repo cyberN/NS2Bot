@@ -21,6 +21,7 @@
 
 Script.Load("lua/Bot_Base.lua")
 Script.Load("lua/Bot_MarineMixin.lua")
+Script.Load("lua/chat/ChatBot_Mixin.lua")
 
 class 'BotJeffco' (Bot)
 
@@ -39,6 +40,7 @@ function BotJeffco:Initialize()
 	
 	// TODO only mixin' when being marine?
 	InitMixin(self, Bot_MarineMixin)
+	InitMixin(self, ChatBot_Mixin)
 	
 	// misc init
 	self.targetReachedRange = 1.0
@@ -190,7 +192,7 @@ end
 function BotJeffco:StateTrace(name)
 	if (Shared.GetDevMode() and self.stateName ~= name) then
 		if self:GetPlayer():isa("Marine")  then
-			if (self.orderTarget ~= nil and self.orderTarget:IsValid()) then
+			if (self.orderTarget and self.orderTarget.IsValid and self.orderTarget:IsValid()) then
 				Print("# %s @ %s", name, self.orderTarget:GetClassName())
 			else
 				Print("# %s", name)
@@ -202,10 +204,17 @@ end
 
 //=============================================================================
 
+function BotJeffco:OnChat(message, playerName, teamOnly)
+	self:ChatReceived(message, playerName, teamOnly)
+end
+
 function BotJeffco:OnThink(deltaTime)
 
 	// super
 	Bot.OnThink(self, deltaTime)
+	
+	// chatbot
+	self:ChatThink()
 
 	// misc
 	self:UpdateOrder()
@@ -241,7 +250,9 @@ end
 function BotJeffco:InitialState()
 
     self:StateTrace("initial")
-
+	
+	
+	
     // wait a few seconds, set name and start idling
     if self.stateTime > 6 then
   
@@ -253,6 +264,8 @@ function BotJeffco:InitialState()
             OnCommandSetName(self.client, self.name)
 
         end
+		
+		self:ChatSayHello()
         
         return self.IdleState
    

@@ -25,6 +25,43 @@
 local botBots = { }
 local botMaxCount = 0
 
+// we need a little delay here :)
+local _OriginalServerAddChatToHistory = nil
+local function installOverrides()
+
+	if (_OriginalServerAddChatToHistory ~= nil) then return end
+	
+	// override Server.AddChatToHistory so we can listen for incoming chatter
+	_OriginalServerAddChatToHistory = Server.AddChatToHistory
+	function Server.AddChatToHistory(message, playerName, steamId, teamNumber, teamOnly)
+		// call original
+		_OriginalServerAddChatToHistory(message, playerName, steamId, teamNumber, teamOnly)
+		
+		for _, bot in ipairs(botBots) do
+			if (not teamOnly or bot:GetPlayer():GetTeamNumber() == teamNumber) and (playerName ~= bot:GetPlayer():GetName()) then
+				return bot:OnChat(message, playerName, teamOnly)
+			end
+		end
+	end
+	
+	// a commander gave us ping (client, {position = Vector}), overriding NetworkMessages_Server.lua:209
+	Server.HookNetworkMessage("CommanderPing", function(client, message)
+
+		local player = client:GetControllingPlayer()
+		if player then
+			local team = player:GetTeam()
+			team:SetCommanderPing(message.position)
+			
+			local team = player:GetTeamNumber()
+			for _, bot in ipairs(botBots) do
+				if bot:GetPlayer():GetTeamNumber() == team then
+					bot:OnCommanderPing(message.position)
+				end
+			end
+		end
+	end)
+end
+
 function Bot_OnConsoleSetBots(client, countParam)
 
     // admin rights?
@@ -130,13 +167,13 @@ function Bot_OnVirtualClientMove(client)
 end
 
 function Bot_OnVirtualClientThink(client, deltaTime)
-
+	installOverrides()
+	
     for _, bot in ipairs(botBots) do
         if bot.client == client then
             return bot:OnThink(deltaTime)
         end
     end
-
 end
 
 function Bot_OnUpdateServer()

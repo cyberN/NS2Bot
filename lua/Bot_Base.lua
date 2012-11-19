@@ -76,6 +76,9 @@ function Bot:OnMove()
 	return self.move
 end
 
+function Bot:OnChat(message, playerName, teamOnly)
+end
+
 //=== Movement =================================================================
 
 function Bot:Jump()
@@ -135,6 +138,16 @@ function Bot:MoveLeft()
 end
 function Bot:MoveRigth()
 	self.move.move.x = 1
+end
+
+function Bot:Drop()
+	self.move.commands = bit.bor(self.move.commands, Move.Drop)
+end
+function Bot:Flashlight(enabled)
+	if (self.mFlashlight == enabled) then return end
+	
+	elf.move.commands = bit.bor(self.move.commands, Move.ToggleFlashlight)
+	self.mFlashlight = not self.mFlashlight
 end
 
 function Bot:LookAtPoint(destination, direct)
@@ -228,6 +241,54 @@ end
 
 //=== Interaction =============================================================
 
+// below are some copies of lua\NetworkMessages_Server.lua
+local kChatsPerSecondAdded = 1
+local kMaxChatsInBucket = 5
+local function CheckChatAllowed(client)
+	client.chatTokenBucket = client.chatTokenBucket or CreateTokenBucket(kChatsPerSecondAdded, kMaxChatsInBucket)
+    return client.chatTokenBucket:RemoveTokens(1)
+end
+
+local function OnChatReceived(client, teamOnly, message)
+	local player = client:GetControllingPlayer()
+	
+	if not CheckChatAllowed(player) then
+		return
+	end
+	
+	local chatMessage = string.sub(message, 1, kMaxChatLength)
+    if chatMessage and string.len(chatMessage) > 0 then
+
+		local playerName = player:GetName()
+		local playerLocationId = player.locationId
+		local playerTeamNumber = player:GetTeamNumber()
+		local playerTeamType = player:GetTeamType()
+        
+        if playerName then
+            if teamOnly then
+                local players = GetEntitiesForTeam("Player", playerTeamNumber)
+                for index, player in ipairs(players) do
+                    Server.SendNetworkMessage(player, "Chat", BuildChatMessage(true, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+                end
+            else
+                Server.SendNetworkMessage("Chat", BuildChatMessage(false, playerName, playerLocationId, playerTeamNumber, playerTeamType, chatMessage), true)
+            end
+			
+            Shared.Message("Chat " .. (teamOnly and "Team - " or "All - ") .. playerName .. ": " .. chatMessage)
+            
+            // We save a history of chat messages received on the Server.
+            Server.AddChatToHistory(chatMessage, playerName, client:GetUserId(), playerTeamNumber, teamOnly)
+        end
+    end
+end
+
+function Bot:SayAll(txt)
+	OnChatReceived(self:GetClient(), false, txt)
+end
+
+function Bot:SayTeam(txt)
+	OnChatReceived(self:GetClient(), true, txt)
+end
 
 //=============================================================================
 
@@ -238,8 +299,32 @@ function Bot:IsMarine()
 	return self:GetPlayer():isa("Marine")
 end
 
+function Bot:IsJetpackMarine()
+	return self:GetPlayer():isa("JetpackMarine")
+end
+
+function Bot:IsExo()
+	return self:GetPlayer():isa("Exo")
+end
+
+function Bot:IsMarineCommander()
+	return self:GetPlayer():isa("MarineCommander")
+end
+
 function Bot:IsAlien()
 	return self:GetPlayer():isa("Alien")
+end
+
+function Bot:IsAlienCommander()
+	return self:GetPlayer():isa("AlienCommander")
+end
+
+function Bot:IsSpectator()
+	return self:GetPlayer():isa("Spectator")
+end
+
+function Bot:IsReadyRoom()
+	return self:GetPlayer():isa("ReadyRoomPlayer")
 end
 
 //=============================================================================
@@ -250,7 +335,10 @@ end
 
 //=============================================================================
 
-//=============================================================================
+//=== Server interaction ======================================================
+
+function Bot:OnCommanderPing(position)
+end
 
 //=== Debug ===================================================================
 
