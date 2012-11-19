@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// lua/BotAIPathMixin.lua
+// lua/BotAI_PathMixin.lua
 //
 // Created by ZycaR
 // Chunks of code are inspired/reused/copyied from other NS2 parts to speed up implementation
@@ -12,30 +12,30 @@
 //=============================================================================
 Script.Load("lua/PathingUtility.lua")
 
-BotAIPathMixin = { }
-BotAIPathMixin.type = "BotAIPath"
+BotAI_PathMixin = { }
+BotAI_PathMixin.type = "BotAI_Path"
 
-function BotAIPathMixin:__initmixin()
+function BotAI_PathMixin:__initmixin()
     self:ResetAIPath()
 end
 
-function BotAIPathMixin:ResetAIPath()
+function BotAI_PathMixin:ResetAIPath()
     self.pathPoints = nil
     self.pathDistance = nil
 end
 
-function BotAIPathMixin:IsAIPathValid()
+function BotAI_PathMixin:IsAIPathValid()
     return (self.pathPoints ~= nil and #(self.pathPoints) > 0)
 end
 
-function BotAIPathMixin:RemainingAIPathPoint()
+function BotAI_PathMixin:RemainingAIPathPoint()
 	if (self.pathPointIndex < 0) then
 		return 0
 	end
     return (#(self.pathPoints) - self.pathPointIndex)
 end
 
-function BotAIPathMixin:CurrentAIPathPoint()
+function BotAI_PathMixin:CurrentAIPathPoint()
 	if (self.pathPointIndex < 0) then
 		return self.currentDst
 	end
@@ -49,7 +49,7 @@ end
 local kDstChangeMaximum = 0.1
 local kPlayerPosChangeMaximum = 1.0
 
-function BotAIPathMixin:GetTargetDistance()
+function BotAI_PathMixin:GetTargetDistance()
 	self.lastDistance = (self:GetPlayer():GetOrigin() - self.currentDst):GetLengthXZ()
 	return self.lastDistance
 end
@@ -58,7 +58,7 @@ end
 // Check for navigation path
 // When player position or destination has been changed, calculates new path
 // Returns distance to destination, -1 on invalid path
-function BotAIPathMixin:CheckTarget(dst)
+function BotAI_PathMixin:CheckTarget(dst)
     
 	// pre conditioning
 	if (self.lastPos == nil) then
@@ -96,7 +96,7 @@ function BotAIPathMixin:CheckTarget(dst)
 	return self:GetTargetDistance()
 end
 
-function BotAIPathMixin:CreateAIPath(src, dst)
+function BotAI_PathMixin:CreateAIPath(src, dst)
 	
 	self:ResetAIPath()
 	
@@ -113,7 +113,7 @@ function BotAIPathMixin:CreateAIPath(src, dst)
 	return self:IsAIPathValid()
 end
 
-function BotAIPathMixin:FindClosestAIPathPoint(location)
+function BotAI_PathMixin:FindClosestAIPathPoint(location)
 
     local closestIndex = -1
     local closestPointSqDist = 999999999
@@ -142,7 +142,7 @@ local kNextAiPathPointReachedRange = 0.33
 // Find the next navigation point
 // call after self:CheckTarget()!
 // returns location of next point or nil when no active path
-function BotAIPathMixin:FindNextAIPathPoint()
+function BotAI_PathMixin:FindNextAIPathPoint()
 
 	// destination has already been reached, see below
 	if (self.pathPointIndex < 0) then
@@ -182,7 +182,7 @@ function BotAIPathMixin:FindNextAIPathPoint()
 	return self.currentDst
 end
 
-function BotAIPathMixin:DrawAIPath(duration)
+function BotAI_PathMixin:DrawAIPath(duration)
 
     if self:IsAIPathValid() then
     

@@ -11,7 +11,7 @@ You have two possibilities here:
 *	As mod: (recommended)
 	1.	Create a new folder (like ns2bot) inside your Steam/steamapps/common/natural selection 2/
 	2.	Clone this repo into this new folder (make sure this exists: Steam/steamapps/common/natural selection 2/ns2bot/game_setup.xml)
-	3.	In Steam right click on NS2 -> properties -> set launch options, put -game <foldername> in there (like -game ns2bot)
+	3.	In Steam right click on NS2 -> properties -> set launch options, put -game -foldername- in there (like -game ns2bot)
 *	Simply copy the .lua files to your Steam/steamapps/common/natural selection 2/ns2/lua directory
 
 Usage

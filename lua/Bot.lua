@@ -22,28 +22,6 @@
 //
 //=============================================================================
 
-class 'Bot'
-
-Script.Load("lua/TargetCache.lua")
-
-function Bot:GetPlayer()
-    
-    local player = self.client:GetControllingPlayer()
-    
-    if not HasMixin(player, "TargetCache") then
-        InitMixin(player, TargetCacheMixin)
-    end
-
-    return player
-end
-
-function Bot:GetIsFlying()
-    // TODO check for lerk or jetpack?
-    return false
-end
-
-//=============================================================================
-
 local botBots = { }
 local botMaxCount = 0
 
@@ -162,11 +140,9 @@ function Bot_OnVirtualClientThink(client, deltaTime)
 end
 
 function Bot_OnUpdateServer()
-
     if math.random() < .005 then
         Bot_OnConsoleSetBots()
     end
-
 end
 
 Event.Hook("Console_addbot",         Bot_OnConsoleAddBots)
@@ -180,4 +156,5 @@ Event.Hook("VirtualClientMove",      Bot_OnVirtualClientMove)
 
 Event.Hook("UpdateServer",           Bot_OnUpdateServer)
 
+Script.Load("lua/Bot_Base.lua")
 Script.Load("lua/Bot_Jeffco.lua")
