@@ -43,6 +43,9 @@ Marine states:
 Marine Commander states:
 -----------
 
+*	Idle
+	*	Change to GetTheFuckOut
+	
 *	GetTheFuckOut
 	*	not thinking about commander AI right now :)
 
@@ -64,3 +67,12 @@ this is just a base, each class will get it's specialized state tree
 	*	tasty marines!
 	*	GET EM!!1!11!1
 				
+
+Alien Commander states:
+-----------
+
+*	Idle
+	*	Change to GetTheFuckOut
+	
+*	GetTheFuckOut
+	*	not thinking about commander AI right now :)

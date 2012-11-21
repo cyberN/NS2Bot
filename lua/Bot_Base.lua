@@ -140,6 +140,9 @@ function Bot:MoveRigth()
 	self.move.move.x = 1
 end
 
+function Bot:Exit()
+	self.move.commands = bit.bor(self.move.commands, Move.Exit)
+end
 function Bot:Drop()
 	self.move.commands = bit.bor(self.move.commands, Move.Drop)
 end
@@ -158,10 +161,14 @@ function Bot:LookAtPoint(destination, direct)
     local direction = GetNormalizedVector(diff)
     
     // look at target
-    if direct then
+    if (type(direct) == "boolean" and direct) then
         self.move.yaw = GetYawFromVector(direction) - player:GetBaseViewAngles().yaw
     else
-        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player:GetBaseViewAngles().yaw, 0.75)
+        local speed = 0.75
+        if (direct and type(direct) == "number" and direct > 0) then
+            speed = direct
+        end
+        self.move.yaw = SlerpRadians(self.move.yaw, GetYawFromVector(direction) - player:GetBaseViewAngles().yaw, speed)
     end
     self.move.pitch = GetPitchFromVector(direction) - player:GetBaseViewAngles().pitch
 end
@@ -290,8 +297,15 @@ function Bot:SayTeam(txt)
 	OnChatReceived(self:GetClient(), true, txt)
 end
 
-//=============================================================================
+//=== Resources ===============================================================
 
+function Bot:GetResources()
+    return self:GetPlayer():GetResources()
+end
+
+function Bot:GetTeamResources()
+    return self:GetPlayer():GetTeam():GetTeamResources()
+end
 
 //=== Misc ====================================================================
 
@@ -335,9 +349,63 @@ end
 
 //=============================================================================
 
-//=== Server interaction ======================================================
+//=== Commander stuff =??======================================================
 
 function Bot:OnCommanderPing(position)
+end
+
+function Bot:GetHasCommander()
+    
+    local team = self:GetPlayer():GetTeamType()
+    local commanderClassName = nil
+    if (team == kAlienTeamType) then
+        commanderClassName = "AlienCommander"
+    elseif (team == kMarineTeamType) then
+        commanderClassName = "MarineCommander"
+    end
+    
+    if (not commanderClassName) then return false end
+
+    local ents = Shared.GetEntitiesWithClassname(commanderClassName)
+    local count = ents:GetSize()
+    local player = self:GetPlayer()
+    local teamNumber = player:GetTeamNumber()
+    
+    for i = 0, count - 1 do
+        local commander = ents:GetEntityAtIndex(i)
+        if (commander ~= nil and commander:GetTeamNumber() == teamNumber) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+function Bot:GetCommandStation()
+
+    local team = self:GetPlayer():GetTeamType()
+    local commanderClassName = nil
+    if (team == kAlienTeamType) then
+        commanderClassName = "Hive"
+    elseif (team == kMarineTeamType) then
+        commanderClassName = "CommandStation"
+    end
+    
+    local ents = Shared.GetEntitiesWithClassname(commanderClassName)    
+    local count = ents:GetSize()
+    local player = self:GetPlayer()
+    local eyePos = player:GetEyePos()
+    local closestCommandStation, closestDistance
+    
+    for i = 0, count - 1 do
+        local commandStation = ents:GetEntityAtIndex(i)
+        local distance = (commandStation:GetOrigin() - eyePos):GetLengthSquared()
+        if closestCommandStation == nil or distance < closestDistance then
+            closestCommandStation, closestDistance = commandStation, distance
+        end
+    end
+    
+    return closestCommandStation
 end
 
 //=== Debug ===================================================================

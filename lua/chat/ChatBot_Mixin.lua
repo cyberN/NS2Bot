@@ -1,3 +1,24 @@
+//=============================================================================
+//
+// lua\chat\ChatBot_Mixin.lua
+//
+// Copyright 2012 Sebastian J. (borstymail@googlemail.com)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+//=============================================================================
+
+Script.Load("lua/ConfigFileUtility.lua")
 
 ChatBot_Mixin = { }
 ChatBot_Mixin.type = "ChatBot"
@@ -71,33 +92,6 @@ end
 function ChatBot_Mixin:ChatSayHello()
 	if math.random() < .33 then
 		self:DelayedChat(table.Random(joinGreetings))
-	end
-end
-
--- explode(seperator, string)
-if (not string.Explode) then
-	function string.Explode(d,p)
-	  local t, ll
-	  t={}
-	  ll=0
-	  if(#p == 1) then return {p} end
-		while true do
-		  l=string.find(p,d,ll,true) -- find the next d in the string
-		  if l~=nil then -- if "not not" found then..
-			table.insert(t, string.sub(p,ll,l-1)) -- Save it in our array.
-			ll=l+1 -- save just after where we found it for searching next time.
-		  else
-			table.insert(t, string.sub(p,ll)) -- Save what's left in our array.
-			break -- Break at end, as it should be, according to the lua manual.
-		  end
-		end
-	  return t
-	end
-end
-
-if (not table.Random) then
-	function table.Random(t)
-		return t[math.random(#t)]
 	end
 end
 

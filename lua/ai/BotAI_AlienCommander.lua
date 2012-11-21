@@ -1,6 +1,6 @@
 //=============================================================================
 //
-// lua\ai\BotAI_MarineCommander.lua
+// lua\ai\BotAI_AlienCommander.lua
 //
 // Copyright 2012 Sebastian J. (borstymail@googlemail.com)
 //
@@ -18,43 +18,43 @@
 //
 //=============================================================================
 
-class 'BotAI_MarineCommander' (BotAI_Base)
+class 'BotAI_AlienCommander' (BotAI_Base)
 
 // is the player ok with this ai type?
-function BotAI_MarineCommander.IsPlayerApplicable(player)
-    return player:isa("Marine") or player:isa("MarineCommander")
+function BotAI_AlienCommander.IsPlayerApplicable(player)
+    return player:isa("Alien") or player:isa("AlienCommander")
 end
 
-function BotAI_MarineCommander:AIName()
-    return "BotAI_MarineCommander"
+function BotAI_AlienCommander:AIName()
+    return "BotAI_AlienCommander"
 end
 
 // init
-function BotAI_MarineCommander:Initialize()
+function BotAI_AlienCommander:Initialize()
 end
 
 // leaving this ai
-function BotAI_MarineCommander:Dispose()
+function BotAI_AlienCommander:Dispose()
 end
 
 // think
-function BotAI_MarineCommander:OnThink(deltaTime)
+function BotAI_AlienCommander:OnThink(deltaTime)
     // super does state machinin'
     return BotAI_Base.OnThink(self, deltaTime)
 end
 
 // chat
-function BotAI_MarineCommander:OnChat(message, playerName, teamOnly)
+function BotAI_AlienCommander:OnChat(message, playerName, teamOnly)
     return BotAI_Base.OnChat(self, message, playerName, teamOnly)
 end
 
 // === States ===============================================
 
-function BotAI_MarineCommander:IdleState()
+function BotAI_AlienCommander:IdleState()
     return self.GetTheFuckOutState
 end
 
-function BotAI_MarineCommander:GetTheFuckOutState()
+function BotAI_AlienCommander:GetTheFuckOutState()
 
     // get out of here >:C
     self:Exit()

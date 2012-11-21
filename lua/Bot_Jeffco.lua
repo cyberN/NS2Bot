@@ -192,7 +192,7 @@ end
 function BotJeffco:StateTrace(name)
 	if (Shared.GetDevMode() and self.stateName ~= name) then
 		if self:GetPlayer():isa("Marine")  then
-			if (self.orderTarget and self.orderTarget.IsValid and self.orderTarget:IsValid()) then
+			if (self.orderTarget and self.orderTarget and self.orderTarget:IsValid()) then
 				Print("# %s @ %s", name, self.orderTarget:GetClassName())
 			else
 				Print("# %s", name)

@@ -5,6 +5,7 @@
 // Implementation of Natural Selection 2 bot commands and event hooks
 //
 // Copyright 2011 Colin Graf (colin.graf@sovereign-labs.com)
+// Copyright 2012 Sebastian J. (borstymail@googlemail.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +19,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Edited by Sebastian J. (borstymail@googlemail.com)
-//
 //=============================================================================
+
+// some utility functions/expansions
+
+-- explode(seperator, string)
+if (not string.Explode) then
+	function string.Explode(d,p)
+	  local t, ll
+	  t={}
+	  ll=0
+	  if(#p == 1) then return {p} end
+		while true do
+		  l=string.find(p,d,ll,true) -- find the next d in the string
+		  if l~=nil then -- if "not not" found then..
+			table.insert(t, string.sub(p,ll,l-1)) -- Save it in our array.
+			ll=l+1 -- save just after where we found it for searching next time.
+		  else
+			table.insert(t, string.sub(p,ll)) -- Save what's left in our array.
+			break -- Break at end, as it should be, according to the lua manual.
+		  end
+		end
+	  return t
+	end
+end
+
+if (not table.Random) then
+	function table.Random(t)
+		return t[math.random(#t)]
+	end
+end
+
+//=============================================================================
+
+
 
 local botBots = { }
 local botMaxCount = 0
@@ -82,7 +114,7 @@ function Bot_OnConsoleSetBots(client, countParam)
     // add more bots
     while table.maxn(botBots) < botCount do
     
-        local bot = BotJeffco()
+        local bot = BotAIUser()
         bot:Initialize()
         bot.client = Server.AddVirtualClient()
         table.insert(botBots, bot)
@@ -194,4 +226,5 @@ Event.Hook("VirtualClientMove",      Bot_OnVirtualClientMove)
 Event.Hook("UpdateServer",           Bot_OnUpdateServer)
 
 Script.Load("lua/Bot_Base.lua")
-Script.Load("lua/Bot_Jeffco.lua")
+//Script.Load("lua/Bot_Jeffco.lua")
+Script.Load("lua/Bot_AiUser.lua")

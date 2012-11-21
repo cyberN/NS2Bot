@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+  <file>
+    <filename>lua\Bot.lua</filename>
+  </file>
+  <file>
+    <filename>lua\ai\BotAI_Alien.lua</filename>
+  </file>
+  <file>
+    <filename>lua\ai\BotAI_AlienCommander.lua</filename>
+  </file>
+  <file>
+    <filename>lua\ai\BotAI_Base.lua</filename>
+  </file>
+  <file>
+    <filename>lua\ai\BotAI_Marine.lua</filename>
+  </file>
+  <file>
+    <filename>lua\ai\BotAI_MarineCommander.lua</filename>
+  </file>
+  <file>
+    <filename>lua\BotAI_PathMixin.lua</filename>
+  </file>
+  <file>
+    <filename>lua\BotAI_TargetingMixin.lua</filename>
+  </file>
+  <file>
+    <filename>lua\Bot_AiUser.lua</filename>
+  </file>
+  <file>
+    <filename>lua\Bot_Base.lua</filename>
+  </file>
+  <file>
+    <filename>lua\Bot_Jeffco.lua</filename>
+  </file>
+  <file>
+    <filename>lua\Bot_MarineMixin.lua</filename>
+  </file>
+  <file>
+    <filename>lua\chat\ChatBot_Mixin.lua</filename>
+  </file>
+  <file>
+    <filename>lua\chat\ChatBot_Phrases.lua</filename>
+  </file>
+</project>

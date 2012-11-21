@@ -26,8 +26,27 @@ function BotAI_TargetingMixin:__initmixin()
 end
 
 local kRange = 30
-local kMaxPitch = 89
-local kMinPitch = -89
+local kMaxPitch = 85
+local kMinPitch = -85
+
+//
+// Removes targets that are not inside the maxYaw
+// TODO
+/*
+function PitchTargetFilter(attacker, minPitchDegree, maxPitchDegree)
+    return function(target, targetPoint)
+        local origin = GetEntityEyePos(attacker)
+        local viewCoords = GetEntityViewAngles(attacker):GetCoords()
+        local v = targetPoint - origin
+        local distY = Math.DotProduct(viewCoords.yAxis, v)
+        local distZ = Math.DotProduct(viewCoords.zAxis, v)
+        local pitch = 180 * math.atan2(distY,distZ) / math.pi
+        result = pitch >= minPitchDegree and pitch <= maxPitchDegree
+        // Log("filter %s for %s, v %s, pitch %s, result %s (%s,%s)", target, attacker, v, pitch, result, minPitchDegree, maxPitchDegree)
+        return result
+    end  
+end
+*/
 
 function BotAI_TargetingMixin:GetMoblieAttackTarget()
 
