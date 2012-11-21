@@ -508,7 +508,7 @@ function BotAI_Marine:IdleState()
         local player = self:GetPlayer()
         self.randomLookTarget = player:GetEyePos()
         self.randomLookTarget.x = self.randomLookTarget.x + math.random(-50, 50)
-        self.randomLookTarget.y = self.randomLookTarget.x + math.random(-10, 10)
+        self.randomLookTarget.y = self.randomLookTarget.y + math.random(-10, 10)
         self.randomLookTarget.z = self.randomLookTarget.z + math.random(-50, 50)
     end
     local lookSpeed = self:DeltaTime() * 2
@@ -530,7 +530,7 @@ end
 function BotAI_Marine:PickupState()
     self:StateTrace("pickup")
     
-    self:GetBot():SayTeam("LoL I can't pick up shit") // DEBUG
+    //self:GetBot():SayTeam("LoL I can't pick up shit") // DEBUG
     
     // done tee hee :v
     self.task:SetDone(true)
@@ -569,7 +569,7 @@ function BotAI_Marine:MoveState()
     
     // target reached?
     if self:GetBot():MoveToPoint(self.moveLocation, self.moveRange) or (self:GetStateTime() > kMoveTimeout) then
-        self:GetBot():SayTeam("Moved to location.") // DEBUG
+        //self:GetBot():SayTeam("Moved to location.") // DEBUG
         return EndStateCheckTask(self.task, kBotTaskOrders.Move, self.IdleState)
     end
     
@@ -597,7 +597,7 @@ function BotAI_Marine:ConstructState()
     // target construction done?
     local constructionTarget = self.constructTarget
     if (HasMixin(constructionTarget, "Construct") and constructionTarget:GetIsBuilt()) then
-        self:GetBot():SayTeam("Target constructed.") // DEBUG
+        //self:GetBot():SayTeam("Target constructed.") // DEBUG
         return EndStateCheckTask(self.task, kBotTaskOrders.Construct, self.IdleState)
     end
     
@@ -666,7 +666,7 @@ function BotAI_Marine:AttackState()
   
     // check if dead
     if ((HasMixin(attackTarget, "Live") and not attackTarget:GetIsAlive()) or attackTarget:GetHealthScalar() <= 0) then
-        self:GetBot():SayTeam("Target killed.") // DEBUG
+        //self:GetBot():SayTeam("Target killed.") // DEBUG
         return EndStateCheckTask(self.task, kBotTaskOrders.Attack, self.IdleState)
     end
   
