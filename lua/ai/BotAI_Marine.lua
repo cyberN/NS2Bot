@@ -47,6 +47,14 @@ function BotAI_Marine:OnThink(deltaTime)
 	// misc
 	self:TriggerAlerts()
 	
+	// reload weapon
+	local activeWeapon = self:GetActiveWeapon()
+    if (activeWeapon and activeWeapon:isa("ClipWeapon")) then
+        if (activeWeapon:GetClip() <= 0 and activeWeapon:GetAmmo() > 0) then
+            self:GetBot():Reload()
+        end
+    end
+	
 	// check flashlight
 	if (math.random() < .1) then
 		self:GetBot():Flashlight( self:IsDarkInHere() )
@@ -60,13 +68,15 @@ end
 function BotAI_Marine:OnChat(message, playerName, teamOnly)
 end
 
-function BotAI_Base:OnSpawn()
+function BotAI_Marine:OnSpawn()
+    self:GetBot():SayAll("I spawned.")
     self.task = nil
 	self.targetReachedRange = 1.0
 	self:SetState(self.IdleState)
 end
 
-function BotAI_Base:OnDeath()
+function BotAI_Marine:OnDeath()
+    self:GetBot():SayAll("I died.")
     self.task = nil
 	self:SetState(self.DeathState)
 end
@@ -205,7 +215,7 @@ function BotAI_Marine:IsDarkInHere()
 		local powerpoint = GetPowerPointForLocation(location:GetName())
 		
 		// find
-		return powerpoint and (powerpoint:GetIsSocketed() and not powerpoint:GetIsPowering())
+		return powerpoint and (powerpoint:GetIsBuilt() /*and powerpoint:GetIsSocketed()*/ and not powerpoint:GetIsPowering())
 	end
 	
 	return false
@@ -231,7 +241,6 @@ function BotAI_Marine:TriggerAlerts()
 		// TODO check for nearby medpacks
 		local pickupable = self:FindPickupable("MedPack")
 		if pickupable ~= nil then
-			//Print("Player found a medpack to pickup")
 		else
 			if math.random() < .5 then
 				// TODO: consider armory distance
@@ -246,7 +255,6 @@ function BotAI_Marine:TriggerAlerts()
 
 		local pickupable = self:FindPickupable("AmmoPack")
 		if pickupable ~= nil then
-			//Print("Player found an ammopack to pickup")
 		else
 			if math.random() < .5 then
 				// TODO: consider armory distance
@@ -280,7 +288,15 @@ end
 function BotTask:Init(orderType, orderLocation, orderTarget, preferredState)
     self.type = orderType or kBotTaskOrders.None
     self.location = orderLocation
-    self.target = orderTarget
+    
+    if (not orderTarget) then
+        self.targetId = Entity.invalidId
+    elseif (type(orderTarget)=="number") then
+        self.targetId = orderTarget
+    else
+        self.targetId = orderTarget:GetId()
+    end
+    
     self.state = preferredState
     self.time = Shared.GetTime()
 end
@@ -298,11 +314,20 @@ function BotTask:Type()
 end
 
 function BotTask:Location()
-    return self.location or (self.target.GetOrigin and self.target:GetOrigin()) or self.target:GetEngagementPoint()
+    if (self.location) then return self.location end
+    
+    local target = self:Target()
+    if (target) then
+        return (target.GetOrigin and target:GetOrigin()) or target:GetEngagementPoint()
+    end
 end
 
 function BotTask:Target()
-    return self.target
+    return Shared.GetEntity(self.targetId)
+end
+
+function BotTask:TargetId()
+    return self.targetId
 end
 
 function BotTask:IsValid()
@@ -320,7 +345,7 @@ end
 function BotTask:Equals(other)
     local a = self.state == other.state
     local b = self.type  == other.type
-    local c = (not self.target   or self.target   == other.target)
+    local c = self.targetId == other.targetId
     local d = (not self.location or self.location == other.location)
     
     return a and b and c and d
@@ -452,7 +477,7 @@ end
 
 function BotAI_Marine:StateTrace(name)
 	if (Shared.GetDevMode() and self.stateName ~= name) then
-        Print("[M] %s", name)
+        Print("[M] %s -> %s", self:GetPlayer():GetName(), name)
         self.stateName = name
 	end
 end
@@ -466,14 +491,14 @@ function BotAI_Marine:GetStateForTask(task)
         
     if (task:Type() == kBotTaskOrders.Attack) then
         
-        self.attackTarget = task:Target()
+        self.attackTargetId = task:TargetId()
         self.attackLocation = task:Location()
         
         return self.AttackState
         
     elseif (task:Type() == kBotTaskOrders.Construct) then
         
-        self.constructTarget = task:Target()
+        self.constructTargetId = task:TargetId()
         self.constructLocation = task:Location()
         
         return self.ConstructState
@@ -569,7 +594,7 @@ function BotAI_Marine:IdleState()
         self.randomLookTarget.y = self.randomLookTarget.y + math.random(-10, 10)
         self.randomLookTarget.z = self.randomLookTarget.z + math.random(-50, 50)
     end
-    local lookSpeed = self:DeltaTime() * 2
+    local lookSpeed = self:DeltaTime() * 0.5
     self:GetBot():LookAtPoint(self.randomLookTarget, lookSpeed)
     
     // reset randomLookTarget when reached
@@ -605,16 +630,43 @@ function BotAI_Marine:WalkAroundState()
     // TODO find proper random targets :)
 	
     local randomWalkTarget = player:GetEyePos()
-    randomWalkTarget.x = randomWalkTarget.x + math.random(-8, 8)
-    randomWalkTarget.z = randomWalkTarget.z + math.random(-8, 8)
+    randomWalkTarget.x = randomWalkTarget.x + math.random(-12, 12)
+    randomWalkTarget.z = randomWalkTarget.z + math.random(-12, 12)
     
-    self.moveRange = 1.0
+    local trace = true
+    
+    // go to one of our comm stations
+    if ( math.random() < .02 ) then
+        randomWalkTarget = self:GetBot():GetCommandStation()
+        trace = false
+    elseif (math.random() < .05) then
+        local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
+        if ents:GetSize() > 0 then 
+            local index = math.floor(math.random() * ents:GetSize())
+            local target = ents:GetEntityAtIndex(index)
+            randomWalkTarget = target:GetEngagementPoint()
+            trace = false
+        end
+    end
+    
+    if (trace) then
+        // check if can see point
+        trace = Shared.TraceRay(player:GetEyePos(), randomWalkTarget, CollisionRep.LOS, PhysicsMask.AllButPCs, EntityFilterTwo(player, self:GetActiveWeapon()))
+        
+        if (trace.fraction < 0.25) then
+            return self.WalkAroundState
+        end
+        
+        randomWalkTarget = trace.endPoint
+    end
+    
+    self.moveRange = 2.0
     
     self.task = MakeBotTask(kBotTaskOrders.Move, randomWalkTarget, nil, self.MoveState)
     local newState = self:GetStateForTask(self.task)
     if (newState) then return newState end
     
-    return self.IdleState
+    return self.WalkAroundState
 end
 
 function BotAI_Marine:MoveState()
@@ -623,7 +675,30 @@ function BotAI_Marine:MoveState()
     
     // check urgent state changes
     local newState = self:CheckForStateChanges(true)
-    if (newState) then return newState end
+    if (newState) then 
+        return newState 
+    end
+    
+    // check if we're just moving to get to our last attack target
+    if (self.task and self.task:Type() == kBotTaskOrders.Attack) then
+        
+        local player = self:GetPlayer()
+        local activeWeapon = self:GetActiveWeapon()
+        local attackTarget = self.task:Target()
+        
+        // has weapon and is in range
+        if (activeWeapon and (player:GetEyePos() - attackTarget:GetModelOrigin()):GetLength() < self.moveRange) then
+            // trace dem target
+            local filter = EntityFilterTwo(player, activeWeapon)
+            local trace = Shared.TraceRay(player:GetEyePos(), attackTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
+            
+            
+            // return to attackstate
+            if trace.entity == attackTarget then
+                return self.AttackState
+            end
+        end
+    end
     
     // target reached?
     if self:GetBot():MoveToPoint(self.moveLocation, self.moveRange) or (self:GetStateTime() > kMoveTimeout) then
@@ -653,23 +728,26 @@ function BotAI_Marine:ConstructState()
     if (newState) then return newState end
     
     // target construction done?
-    local constructionTarget = self.constructTarget
-    local isBuild = not HasMixin(constructionTarget, "Construct") or constructionTarget:GetIsBuilt()
-    local isPowerNodeHealthy = not constructionTarget:isa("PowerPoint") or (constructionTarget:GetIsSocketed() and constructionTarget:GetHealthScalar() >= 1.0)
-    if (isBuild and isPowerNodeHealthy) then
+    local constructionTarget = Shared.GetEntity( self.constructTargetId )
+    
+    if (not constructionTarget or 
+            ((not HasMixin(constructionTarget, "Construct") or constructionTarget:GetIsBuilt()) and 
+                (not constructionTarget:isa("PowerPoint") or (constructionTarget:GetIsSocketed() and constructionTarget:GetHealthScalar() >= 1.0)))
+    ) then
+            
         //self:GetBot():SayTeam("Target constructed.") // DEBUG
         return EndStateCheckTask(self.task, kBotTaskOrders.Construct, self.IdleState)
     end
     
     // is target reachable?    
     local player = self:GetPlayer()
-    local engagementPoint = self.constructTarget:GetEngagementPoint()
+    local engagementPoint = constructionTarget:GetEngagementPoint()
     
-    local allowedDistance = GetEngagementDistance(self.constructTarget:GetTechId(), true)
+    local allowedDistance = GetEngagementDistance(constructionTarget:GetTechId(), true)
    
-    if self.constructTarget:isa("RoboticsFactory") then
+    if constructionTarget:isa("RoboticsFactory") then
         allowedDistance = allowedDistance * 0.5
-    elseif self.constructTarget:isa("Observatory") then
+    elseif constructionTarget:isa("Observatory") then
         allowedDistance = allowedDistance * 1.6
     end
     
@@ -773,11 +851,11 @@ function BotAI_Marine:AttackState()
         return newState 
     end
     
-    local attackTarget = self.attackTarget
+    local attackTarget = Shared.GetEntity( self.attackTargetId )
     local player = self:GetPlayer()
   
     // check if went out of range or dead
-    if ( (self.attackTimeout and self.attackTimeout < Shared.GetTime()) or  (HasMixin(attackTarget, "Live") and not attackTarget:GetIsAlive()) or attackTarget:GetHealthScalar() <= 0) then
+    if ( not attackTarget or (self.attackTimeout and self.attackTimeout < Shared.GetTime()) or  (HasMixin(attackTarget, "Live") and not attackTarget:GetIsAlive()) or attackTarget:GetHealthScalar() <= 0) then
         //self:GetBot():SayTeam("Target killed.") // DEBUG
         self.attackTimeout = nil
         return EndStateCheckTask(self.task, kBotTaskOrders.Attack, self.IdleState)
@@ -796,6 +874,8 @@ function BotAI_Marine:AttackState()
         // Some bots switch to axe to take down structures
         if (GetReceivesStructuralDamage(attackTarget) and self.prefersAxe and not activeWeapon:isa("Axe")) or outOfAmmo then
         
+            // TODO check for welder
+            
             self:GetBot():Weapon3()
             return self.AttackState
             
@@ -814,114 +894,51 @@ function BotAI_Marine:AttackState()
         
     end
     
+    // TODO findWeaponState?
+    if not activeWeapon then
+        self.task:SetDone(true)
+        return self.IdleState
+    end
+    
     // Attack target! TODO: We should have formal point where attack emanates from.
-    local distToTarget = (attackTarget:GetEngagementPoint() - player:GetModelOrigin()):GetLength()
+    
+    // trace dem target
+    local filter = EntityFilterTwo(player, activeWeapon)
+    local trace = Shared.TraceRay(player:GetEyePos(), attackTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
+    
     local attackDist = self:GetAttackDistance()
-    
-    if activeWeapon and attackDist and (distToTarget < attackDist) then
-    
-        // Make sure we can see target
-        local filter = EntityFilterTwo(player, activeWeapon)
-        local trace = Shared.TraceRay(player:GetEyePos(), attackTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
-        if trace.entity == attackTarget then
+        
+    if trace.entity == attackTarget then
+        
+        local distToTarget = (trace.endPoint - player:GetEyePos()):GetLength()
+        
+        if (distToTarget < attackDist) then
         
             // look at attack target
-            local targetPosition = attackTarget:GetOrigin()
-            targetPosition.x = targetPosition.x + (math.random() - 0.5) * 1.1
-            targetPosition.y = targetPosition.y + (math.random() - 0.5) * 1.1
-            targetPosition.z = targetPosition.z + (math.random() - 0.5) * 1.1
+            local targetPosition = attackTarget:GetModelOrigin()
+            targetPosition.x = targetPosition.x + (math.random() - 0.5) * 0.8
+            targetPosition.y = targetPosition.y + (math.random() - 0.5) * 0.8
+            targetPosition.z = targetPosition.z + (math.random() - 0.5) * 0.8
             
             self:GetBot():LookAtPoint(targetPosition)
             self:GetBot():PrimaryAttack()
             
             self.attackTimeout = Shared.GetTime() + 5
             
-        end
-        
-        return self.AttackState
-    
-    else
-        
-        // TODO check if working 
-        
-        self.moveLocation = attackTarget:GetEngagementPoint()
-        self.moveRange = 2.0
-        
-        return self.MoveState
-        
-    end
-    
-    
-    /*
-    
-    // a building should be killed using a knife
-    if isStructure and (activeWeapon == nil or not activeWeapon:isa("Axe")) then
-        self:GetBot():Weapon3()
-    elseif attackTarget:isa("Player") then
-        local primaryWeapon, secondaryWeapon = self:GetWeapons()
-        if primaryWeapon and (not primaryWeapon:isa("ClipWeapon") or primaryWeapon:GetAmmo() > 0) then
-            if activeWeapon ~= primaryWeapon then
-                self:GetBot():Weapon1()
-            end
-        elseif secondaryWeapon and (not secondaryWeapon:isa("ClipWeapon") or secondaryWeapon:GetAmmo() > 0) then
-            if activeWeapon ~= secondaryWeapon then
-                self:GetBot():Weapon2()
-            end
-        elseif outOfAmmo then
-            self:GetBot():NextWeapon()
-        end
-    elseif outOfAmmo then
-        self:GetBot():NextWeapon()
-    end        
-    
-    // move to axe a target?
-    local melee = false
-    if activeWeapon and activeWeapon:isa("Axe") then
-        melee = true
-        local engagementPoint = attackTarget:GetEngagementPoint()
-        local allowedDistance = 3
-        if attackTarget:isa("Hive") then
-            allowedDistance = 10
-            engagementPoint = attackTarget:GetOrigin()
-        end        
-        if (player:GetEyePos() - engagementPoint):GetLengthSquared() > allowedDistance then
-        
-            self.moveLocation = engagementPoint
-			self.moveRange = 1.0
-			
+        else
+            
+            self.moveLocation = trace.endPoint
+            self.moveRange = attackDist * 0.95
+            self.attackTimeout = nil
+            
             return self.MoveState
             
-        elseif not attackTarget:isa("Hive") then
-            self:GetBot():Crouch()
         end
     end
     
-    // timeout?
-    if self:GetStateTime() > 20 then
-    
-        self.moveLocation = attackTarget:GetEngagementPoint()
-		self.moveRange = 1.0
-		
-        return self.IdleState
-        
-    end
-    
-    // look at attack target
-    local targetPosition = attackTarget:GetOrigin()
-    if activeWeapon and activeWeapon:isa("ClipWeapon") then
-        targetPosition.x = targetPosition.x + (math.random() - 0.5) * 1.1
-        targetPosition.y = targetPosition.y + (math.random() - 0.5) * 1.1
-        targetPosition.z = targetPosition.z + (math.random() - 0.5) * 1.1
-    end
-    self:GetBot():LookAtPoint(targetPosition, melee)
-
-    // attack!
-    //if math.random() < .6 then
-        self:GetBot():PrimaryAttack()
-    //end
-    
+    // wait.. either we spot it again or attackTimeout hits us
     return self.AttackState
-    */
+    
 end
 
 function BotAI_Marine:DeathState()

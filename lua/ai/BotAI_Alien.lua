@@ -36,6 +36,7 @@ end
 function BotAI_Alien:Initialize()
 	self.targetReachedRange = 1.0
 	self.orderType = kOrder.None
+	self.orderTargetId = Entity.invalidId
 end
 
 // leaving this ai
@@ -64,10 +65,10 @@ function BotAI_Alien:UpdateOrder()
 	
     // #1 attack opponent players / mobile objects
     local target = self:GetBot():GetMoblieAttackTarget()
-    if target then
-        if self.orderTarget ~= target then
+    if target and target:GetHealthScalar() > 0 then
+        if self.orderTargetId ~= target:GetId() then
             self.orderType = kOrder.Attack
-            self.orderTarget = target
+            self.orderTargetId = target:GetId()
             self.lastOrderTime = self.currentTime
             return
         end
@@ -81,20 +82,20 @@ function BotAI_Alien:UpdateOrder()
             local orderTarget = Shared.GetEntity(order:GetParam())
             if orderTarget then
                 if orderType == kTechId.Attack then
-                    if not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed() then
-                        if self.orderTarget ~= orderTarget then
+                    if (not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed()) and orderTarget:GetHealthScalar() > 0 then
+                        if self.orderTargetId ~= orderTarget:GetId() then
                             self.orderType = kOrder.Attack
                             self.orderLocation = orderTarget:GetEngagementPoint()
-                            self.orderTarget = orderTarget
+                            self.orderTargetId = orderTarget:GetId()
                             self.lastOrderTime = self.currentTime
                             return
                         end
                     end
                 end
                 if orderType == kTechId.Construct then
-                    if self.orderTarget ~= orderTarget then
+                    if self.orderTargetId ~= orderTarget:GetId() then
                         self.orderType = kOrder.Construct
-                        self.orderTarget = orderTarget
+                        self.orderTargetId = orderTarget:GetId()
                         self.lastOrderTime = self.currentTime
                         return
                     end
@@ -126,10 +127,10 @@ function BotAI_Alien:UpdateOrder()
     
     // #4 attack stationary objects
     target = self:GetBot():GetStaticAttackTarget()
-    if target then
-        if self.orderTarget ~= orderTarget then
+    if target and target:GetHealthScalar() > 0 then
+        if self.orderTargetId ~= target:GetId() then
             self.orderType = kOrder.Attack
-            self.orderTarget = target
+            self.orderTargetId = target:GetId()
             self.lastOrderTime = self.currentTime
             return
         end
@@ -139,7 +140,16 @@ end
 
 // === States ===============================================
 
+function BotAI_Alien:StateTrace(name)
+	if (Shared.GetDevMode() and self.stateName ~= name) then
+        Print("[A] %s -> %s", self:GetPlayer():GetName(), name)
+        self.stateName = name
+	end
+end
+
 function BotAI_Alien:IdleState()
+
+    self:StateTrace("IdleState")
 
     // attack order?
     if self.orderType == kOrder.Attack then
@@ -166,6 +176,8 @@ function BotAI_Alien:IdleState()
 end
 
 function BotAI_Alien:LookAroundState()
+    
+    self:StateTrace("LookAroundState")
     
     if self.orderType ~= kOrder.None then
         return self.IdleState
@@ -194,6 +206,8 @@ end
 
 function BotAI_Alien:WalkAroundState()
 
+    self:StateTrace("WalkAroundState")
+    
     if self.orderType ~= kOrder.None then
         return self.IdleState
     end
@@ -202,24 +216,34 @@ function BotAI_Alien:WalkAroundState()
     
     // TODO find proper random targets :)
 	
-    local randomWalkTarget = player:GetEyePos()
-    randomWalkTarget.x = randomWalkTarget.x + math.random(-8, 8)
-    randomWalkTarget.z = randomWalkTarget.z + math.random(-8, 8)
+	if (not self.randomWalkTarget) then
+        self.randomWalkTarget = player:GetEyePos()
+        self.randomWalkTarget.x = self.randomWalkTarget.x + math.random(-8, 8)
+        self.randomWalkTarget.z = self.randomWalkTarget.z + math.random(-8, 8)
 
-    local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
-    if ents:GetSize() > 0 then 
-        local index = math.floor(math.random() * ents:GetSize())
-        local target = ents:GetEntityAtIndex(index)
-        randomWalkTarget = target:GetEngagementPoint()
+        local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
+        if ents:GetSize() > 0 then 
+            local index = math.floor(math.random() * ents:GetSize())
+            local target = ents:GetEntityAtIndex(index)
+            self.randomWalkTarget = target:GetEngagementPoint()
+        end
+	end
+    
+    // bah
+    if self:GetBot():MoveToPoint(self.randomWalkTarget, 2.5) or (self:GetStateTime() > kMoveTimeout) then
+        self.randomWalkTarget = nil
+        return self.IdleState
     end
     
-    self.orderLocation = randomWalkTarget
-    self.targetReachedRange = 1.0
-    self.orderType = kOrder.Move
+    //self.orderLocation = randomWalkTarget
+    //self.targetReachedRange = 1.0
+    //self.orderType = kOrder.Move
     return self.MoveState
 end
 
 function BotAI_Alien:MoveState()
+    
+    self:StateTrace("MoveState")
     
     if self.orderType ~= kOrder.Move and self.orderType ~= kOrder.AttackMove then
         return self.IdleState
@@ -249,60 +273,63 @@ end
 
 function BotAI_Alien:AttackState()
     
-	// silly errors, so let's pcall dis
-	local ok, state = pcall( function(self)
-		
-		if self.orderType == kOrder.AttackMove then
-			self.orderType = kOrder.Attack
-		end
+    self:StateTrace("AttackState")
+    
+    if self.orderType == kOrder.AttackMove then
+        self.orderType = kOrder.Attack
+    end
 
-		// attack?
-		if self.orderType ~= kOrder.Attack then
-			return self.IdleState
-		end
-		
-		// still valid?
-		if not self.orderTarget then
-			self.orderTarget = nil
-			return self.IdleState
-		end
-		
-		local player = self:GetPlayer()
-		
-		// as alien move to target
-		local engagementPoint = self.orderTarget:GetEngagementPoint()
-		if (player:GetEyePos() - engagementPoint):GetLengthSquared() > 5 then
-			self.orderLocation = engagementPoint
-			self.targetReachedRange = 1.0
-			self.orderType = kOrder.AttackMove
-			return self.MoveState
-		end
-		
-		// timeout?
-		if self:GetStateTime() > 20 then
-			self.orderLocation = self.orderTarget:GetEngagementPoint()
-			self.targetReachedRange = 1.0
-			self.orderType = kOrder.Move
-			return self.MoveState
-		end
-		
-		// look at attack target
-		self:GetBot():LookAtPoint(self.orderTarget:GetOrigin(), true)
-		
-		// attack!
-		if math.random() < .6 then
-			self:GetBot():PrimaryAttack()
-		end
+    // attack?
+    if self.orderType ~= kOrder.Attack then
+        return self.IdleState
+    end
+    
+    local selfOrderTarget = Shared.GetEntity(self.orderTargetId)
+    
+    // still alive?
+    if ( not selfOrderTarget or (self.attackTimeout and self.attackTimeout < Shared.GetTime()) or  (HasMixin(selfOrderTarget, "Live") and not selfOrderTarget:GetIsAlive()) or selfOrderTarget:GetHealthScalar() <= 0) then
+        //self:GetBot():SayTeam("Target killed.") // DEBUG
+        self.attackTimeout = nil
+        self.orderTargetId = Entity.invalidId
+        self.orderType = kOrder.None
+        return self.IdleState
+    end
+    
+    local player = self:GetPlayer()
+    local engagementPoint = selfOrderTarget:GetEngagementPoint()
+    
+    // check if target visible
+    local filter = EntityFilterOne(player)
+    local trace = Shared.TraceRay(player:GetEyePos(), selfOrderTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
+    
+    // move towards and attack dat thing when visible
+    if (trace.entity == selfOrderTarget) then
+        
+        self:GetBot():LookAtPoint(selfOrderTarget:GetModelOrigin(), true)
+        self:GetBot():MoveForward()
+        
+        self.attackTimeout = Shared.GetTime() + 5
+        if (player:GetEyePos() - engagementPoint):GetLength() < 3 then
+            self:GetBot():PrimaryAttack()
+        end
+        
+        return self.AttackState
+    end
+    
+    // as alien move to target
+    if (player:GetEyePos() - engagementPoint):GetLength() > 5 then
+        self.orderLocation = engagementPoint
+        self.targetReachedRange = 2.0
+        self.orderType = kOrder.AttackMove
+        return self.MoveState
+    end
+    
+        
+    // look at attack target
+    self:GetBot():LookAtPoint(selfOrderTarget:GetOrigin(), true)
+    
+    return self.AttackState
 
-		return self.AttackState
-	end )
-	
-	if (ok) then
-		return state
-	else
-		self.orderTarget = nil
-		return self.IdleState
-	end
 end
 
 /*

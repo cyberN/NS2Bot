@@ -71,7 +71,7 @@ function Bot:OnThink(deltaTime)
     self.move = move
 	
 	// check alive status
-	local lifeStatus = player:GetIsAlive()
+	local lifeStatus = player:GetIsAlive() and player:GetHealthScalar() > 0
 	if (lifeStatus ~= self.mAliveCheck) then
 	    self.mAliveCheck = lifeStatus
 	    if (lifeStatus) then
@@ -254,7 +254,7 @@ function Bot:MoveToPoint(destination, reachedRange, disablePathing)
 			
 			// walk!
 			self.mNextPathPoint = nextPoint
-            self:LookAtPoint(self.mNextPathPoint)
+            self:LookAtPoint(Vector(nextPoint.x, player:GetEyePos().y, nextPoint.z))
 			self:MoveForward()
             return false
 		end
