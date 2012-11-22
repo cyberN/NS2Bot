@@ -34,6 +34,9 @@ randomChatter[3] = "hmm"
 randomChatter[4] = "I like turtles"
 randomChatter[5] = "I'm so bad at this lol"
 randomChatter[6] = "What to do now?"
+randomChatter[7] = "You still there?"
+randomChatter[8] = "Hah.. we'll win this game!"
+randomChatter[9] = "I hope nobody realizes I'm just a silly bot :D"
 
 local joinGreetings = {}
 joinGreetings[1] = "Hey guys"
@@ -46,6 +49,14 @@ greetings[1] = "Hey! What's up?"
 greetings[2] = "Hey <n>."
 greetings[3] = "What's up <n> ?"
 greetings[4] = "Uh oh! <n> has join :O."
+
+local deaths = {}
+deaths[1] = "Crap.. didn't see that thing coming"
+deaths[2] = "Damn!"
+deaths[3] = "No way.."
+deaths[4] = "HUH? What?"
+deaths[5] = "Damnit :("
+deaths[6] = "FUCK"
 
 local chatBots = { }
 
@@ -83,9 +94,15 @@ end
 
 function ChatBot_Mixin:ChatRandom()
 	if (self.nextRandomChat < Shared.GetTime()) then
-		self.nextRandomChat = Shared.GetTime() + math.random(60) + 30
+		self.nextRandomChat = Shared.GetTime() + math.random(90) + 45
 		self:DelayedChat(table.Random(randomChatter), math.random() < .5)
 		return
+	end
+end
+
+function ChatBot_Mixin:ChatDeath()
+	if math.random() < .33 then
+		self:DelayedChat(table.Random(deaths), math.random() < .5)
 	end
 end
 

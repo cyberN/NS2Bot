@@ -124,6 +124,7 @@ end
 
 function BotAIUser:OnDeath()
     Bot.OnDeath(self)
+	self:ChatDeath()
     if (self.activeAI) then
         self.activeAI:OnDeath()
     end

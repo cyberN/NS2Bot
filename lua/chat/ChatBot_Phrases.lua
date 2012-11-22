@@ -1,87 +1,27 @@
 
-ChatPhrases["lol"] = { }
-ChatPhrases["lol"][1] = "It's funny, isn't it."
-ChatPhrases["lol"][2] = "Thats not funny..."
-ChatPhrases["lol"][3] = "Hahaha."
- 
-ChatPhrases["lol?"] = { }
-ChatPhrases["lol?"][1] = "What?"
-ChatPhrases["lol?"][2] = "Thats not funny..."
-ChatPhrases["lol?"][3] = "Are you mocking me?"
- 
-ChatPhrases["rofl"] = { }
-ChatPhrases["rofl"][1] = "It's funny, isn't it."
-ChatPhrases["rofl"][2] = "Thats not funny..."
-ChatPhrases["rofl"][3] = "Hahaha."
- 
-ChatPhrases["lmao"] = { }
-ChatPhrases["lmao"][1] = "It's funny, isn't it."
-ChatPhrases["lmao"][2] = "Thats not funny..."
-ChatPhrases["lmao"][3] = "Hahaha."
- 
-ChatPhrases["shhh"] = { }
-ChatPhrases["shhh"][1] = "Don't you shush me!"
- 
-ChatPhrases["fuck"] = { }
-ChatPhrases["fuck"][1] = "You never know, I might be your mother , so don't swear XD ."
-ChatPhrases["fuck"][2] = "Don't swear please, it will make your teeth fall out!"
- 
-ChatPhrases["why?"] = { }
-ChatPhrases["why?"][1] = "Why what?"
-ChatPhrases["why?"][2] = "'Why?' is not proper grammar!"
- 
-ChatPhrases["what?"] = { }
-ChatPhrases["what?"][1] = "I didn't say anything ..."
-ChatPhrases["what?"][2] = "Nothing ..."
- 
-ChatPhrases["what"] = { }
-ChatPhrases["what"][1] = "I didn't say anything ..."
-ChatPhrases["what"][2] = "Nothing ..."
- 
-ChatPhrases["sugar"] = { }
-ChatPhrases["sugar"][1] = "I love sugar :D."
-ChatPhrases["sugar"][2] = "Sugar is sweet and so is choclate!!"
- 
-ChatPhrases[":d"] = { }
-ChatPhrases[":d"][1] = "You seem happy today!"
-ChatPhrases[":d"][2] = "<n> seems happy today!"
- 
-ChatPhrases[":)"] = { }
-ChatPhrases[":)"][1] = "You seem happy today!"
- 
-ChatPhrases[":("] = { }
-ChatPhrases[":("][1] = "What's wrong?"
- 
-ChatPhrases["d:"] = { }
-ChatPhrases["d:"][1] = "What's wrong?"
-ChatPhrases["d:"][1] = "Haha <n> got a scare for a lifetime"
- 
-ChatPhrases["xd"] = { }
-ChatPhrases["xd"][1] = "LOL."
-ChatPhrases["xd"][2] = "xD"
- 
-ChatPhrases["nothing"] = { }
-ChatPhrases["nothing"][1] = "Nothing is everything that isn't known yet ..."
- 
-ChatPhrases["anything"] = { }
-ChatPhrases["anything"][1] = "Anything is the things that are all around us ...."
- 
-ChatPhrases["up"] = { }
-ChatPhrases["up"][1] = "The sky is up :D and so are the birds!"
-ChatPhrases["up?"] = { }
-ChatPhrases["up?"][1] = "The sky is up :D and so are the birds!"
- 
-ChatPhrases["no"] = { }
-ChatPhrases["no"][1] = "meh"
- 
-ChatPhrases["cool"] = { }
-ChatPhrases["cool"][1] = "Yes, it is cool, but not cold really..."
- 
-ChatPhrases["nick?"] = { }
-ChatPhrases["nick?"][1] = "Yes?"
- 
-ChatPhrases["yes"] = { }
-ChatPhrases["yes"][1] = "Yey!"
- 
-ChatPhrases["yes?"] = { }
-ChatPhrases["yes?"][1] = "What?"
+ChatPhrases["lol"] 		= { "It's funny, isn't it.", "Thats not funny...", "Hahaha." }
+ChatPhrases["lol?"] 	= { "What?", "Thats not funny...", "Are you mocking me?" }
+ChatPhrases["rofl"] 	= { "It's funny, isn't it.", "Thats not funny...", "Hahaha." }
+ChatPhrases["lmao"] 	= { "It's funny, isn't it.", "Thats not funny...", "Hahaha." }
+ChatPhrases["shhh"] 	= { "Don't you shush me!" }
+ChatPhrases["fuck"]		= { "Don't swear please, it will make your teeth fall out!", "You never know, I might be your mother , so don't swear XD ." }
+ChatPhrases["why?"] 	= { "'Why?' is not proper grammar!", "Why what?" }
+ChatPhrases["what?"] 	= { "Nothing ...", "I didn't say anything ..." }
+ChatPhrases["what"]		= { "Nothing ...", "Yep." }
+ChatPhrases["sugar"] 	= { "Sugar is sweet and so is choclate!!", "I love sugar :D." }
+ChatPhrases[":d"] 		= { "<n> seems happy today!", "You seem happy today!" }
+ChatPhrases[":)"] 		= { "You seem happy today!" }
+ChatPhrases[":("] 		= { "What's wrong?" }
+ChatPhrases["d:"] 		= { "What's wrong?", "Haha <n> got a scare for a lifetime" }
+ChatPhrases["xd"] 		= { "xD", "LOL." }
+ChatPhrases["nothing"] 	= { "Nothing is everything that isn't known yet ..." }
+ChatPhrases["anything"]	= { "Anything is the things that are all around us ...." }
+ChatPhrases["up"] 		= { "The sky is up :D and so are the birds!" }
+ChatPhrases["up?"] 		= { "The sky is up :D and so are the birds!" }
+ChatPhrases["no"] 		= { "meh" }
+ChatPhrases["cool"] 	= { "Yes, it is cool, but not cold really..." }
+ChatPhrases["nick?"] 	= { "Yes?" }
+ChatPhrases["yes"] 		= { "Yey!" }
+ChatPhrases["yes?"] 	= { "What?", "Yes", "No, not really ;)" }
+ChatPhrases["bot"] 		= { "Bots?", "There are no bots.", "Everyone's a bot today!" }
+ChatPhrases["damn"]		= { ":)", ":D" } 

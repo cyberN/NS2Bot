@@ -78,6 +78,7 @@ function BotAI_PathMixin:CheckTarget(dst)
 	// build new path when needed
 	if (not pathValid) then
         if self:CreateAIPath(playerPos, dst) then
+			self:FindNextAIPathPoint() // dont start with first point, find first point with desired distance
 			self.lastPos = playerPos
 			self.currentDst = dst
             return self:GetTargetDistance()

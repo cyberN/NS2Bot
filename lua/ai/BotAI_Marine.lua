@@ -69,14 +69,13 @@ function BotAI_Marine:OnChat(message, playerName, teamOnly)
 end
 
 function BotAI_Marine:OnSpawn()
-    self:GetBot():SayAll("I spawned.")
+    //self:GetBot():SayAll("I spawned.")
     self.task = nil
 	self.targetReachedRange = 1.0
 	self:SetState(self.IdleState)
 end
 
 function BotAI_Marine:OnDeath()
-    self:GetBot():SayAll("I died.")
     self.task = nil
 	self:SetState(self.DeathState)
 end
@@ -686,15 +685,14 @@ function BotAI_Marine:MoveState()
         local activeWeapon = self:GetActiveWeapon()
         local attackTarget = self.task:Target()
         
-        // has weapon and is in range
-        if (activeWeapon and (player:GetEyePos() - attackTarget:GetModelOrigin()):GetLength() < self.moveRange) then
+        if (activeWeapon) then
+            
             // trace dem target
             local filter = EntityFilterTwo(player, activeWeapon)
             local trace = Shared.TraceRay(player:GetEyePos(), attackTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
             
-            
             // return to attackstate
-            if trace.entity == attackTarget then
+            if trace.entity == attackTarget and (player:GetEyePos() - trace.endPoint):GetLength() < (self.moveRange*0.99) then
                 return self.AttackState
             end
         end
@@ -755,7 +753,7 @@ function BotAI_Marine:ConstructState()
     if  engagementDistance > (allowedDistance * 2) then
         
         self.moveLocation = engagementPoint
-		self.moveRange = allowedDistance * 1.5
+		self.moveRange = allowedDistance * 1.3
 		
         return self.MoveState
     end
@@ -773,7 +771,7 @@ function BotAI_Marine:ConstructState()
     self:GetBot():Use()
   
 	// move against!
-	if  engagementDistance > allowedDistance * 0.75 then
+	if  engagementDistance > allowedDistance * 0.66 then
 	    self:GetBot():MoveForward()
 	end
   

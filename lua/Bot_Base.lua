@@ -172,9 +172,6 @@ function Bot:Drop()
 end
 function Bot:Flashlight(enabled)
 	if (self.mFlashlight == enabled) then return end
-	
-	self:SayTeam("now i put my flashlight " .. (enabled and "on" or "off"))
-	
 	self.move.commands = bit.bor(self.move.commands, Move.ToggleFlashlight)
 	self.mFlashlight = enabled
 end
@@ -214,7 +211,7 @@ function Bot:MoveToPoint(destination, reachedRange, disablePathing)
 	end
 	
     // use pathfinder
-    if disablePathing == nil then
+    if not disablePathing then
 	
 		// Returns distance to target, -1 would tell us that it can't be reached
 		local distanceToTarget = self:CheckTarget(destination)

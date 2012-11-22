@@ -67,6 +67,7 @@ function BotAI_Alien:UpdateOrder()
     local target = self:GetBot():GetMoblieAttackTarget()
     if target and target:GetHealthScalar() > 0 then
         if self.orderTargetId ~= target:GetId() then
+			//Print("A UO found GetMoblieAttackTarget")
             self.orderType = kOrder.Attack
             self.orderTargetId = target:GetId()
             self.lastOrderTime = self.currentTime
@@ -84,6 +85,7 @@ function BotAI_Alien:UpdateOrder()
                 if orderType == kTechId.Attack then
                     if (not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed()) and orderTarget:GetHealthScalar() > 0 then
                         if self.orderTargetId ~= orderTarget:GetId() then
+							//Print("A UO found attack GetCurrentOrder")
                             self.orderType = kOrder.Attack
                             self.orderLocation = orderTarget:GetEngagementPoint()
                             self.orderTargetId = orderTarget:GetId()
@@ -94,6 +96,7 @@ function BotAI_Alien:UpdateOrder()
                 end
                 if orderType == kTechId.Construct then
                     if self.orderTargetId ~= orderTarget:GetId() then
+						//Print("A UO found construct GetCurrentOrder")
                         self.orderType = kOrder.Construct
                         self.orderTargetId = orderTarget:GetId()
                         self.lastOrderTime = self.currentTime
@@ -104,6 +107,7 @@ function BotAI_Alien:UpdateOrder()
             local orderLocation = order:GetLocation()
             if orderLocation then
                 if orderLocation ~= self.commanderOrderLocation then
+					//Print("A UO found move GetCurrentOrder")
                     self.orderType = kOrder.Move
                     self.orderLocation = orderLocation
                     self.lastOrderTime = self.currentTime
@@ -119,6 +123,7 @@ function BotAI_Alien:UpdateOrder()
                     self.orderType = kOrder.Move
                     self.orderLocation = self.commanderOrderLocation
                     self.lastOrderTime = self.currentTime
+					//Print("A UO commanderOrderLocation")
                     return
                 end
             end
@@ -129,6 +134,7 @@ function BotAI_Alien:UpdateOrder()
     target = self:GetBot():GetStaticAttackTarget()
     if target and target:GetHealthScalar() > 0 then
         if self.orderTargetId ~= target:GetId() then
+			//Print("A UO found GetStaticAttackTarget")
             self.orderType = kOrder.Attack
             self.orderTargetId = target:GetId()
             self.lastOrderTime = self.currentTime
@@ -163,45 +169,33 @@ function BotAI_Alien:IdleState()
     end
     
     // walk around
-    if math.random() < .05 then
+    if math.random() < .1 then
+        self.orderType = kOrder.None
         return self.WalkAroundState
     end
 
-    // look around
-    if math.random() < .1 then
-        return self.LookAroundState
-    end
-
-    return self.IdleState
-end
-
-function BotAI_Alien:LookAroundState()
-    
-    self:StateTrace("LookAroundState")
-    
-    if self.orderType ~= kOrder.None then
-        return self.IdleState
-    end
-    
+    // look around randomly, extra state for this is silly
     if self.randomLookTarget == nil then
         local player = self:GetPlayer()
         self.randomLookTarget = player:GetEyePos()
         self.randomLookTarget.x = self.randomLookTarget.x + math.random(-50, 50)
+        self.randomLookTarget.y = self.randomLookTarget.y + math.random(-10, 10)
         self.randomLookTarget.z = self.randomLookTarget.z + math.random(-50, 50)
     end
-
-    self:GetBot():LookAtPoint(self.randomLookTarget)
+    local lookSpeed = self:DeltaTime() * 0.5
+    self:GetBot():LookAtPoint(self.randomLookTarget, lookSpeed)
     
+    // reset randomLookTarget when reached
     if self.lastYaw then
-        if (math.abs(self.move.yaw - self.lastYaw) < .05 and math.abs(self.move.pitch - self.lastPitch) < .05) or self.stateTime > 10 then
+        if (math.abs(self.move.yaw - self.lastYaw) < lookSpeed and math.abs(self.move.pitch - self.lastPitch) < lookSpeed) then
             self.randomLookTarget = nil
-            return self.IdleState
         end
     end
     self.lastYaw = self.move.yaw
     self.lastPitch = self.move.pitch
     
-    return self.LookAroundState
+    // stay
+    return self.IdleState
 end
 
 function BotAI_Alien:WalkAroundState()
@@ -209,6 +203,8 @@ function BotAI_Alien:WalkAroundState()
     self:StateTrace("WalkAroundState")
     
     if self.orderType ~= kOrder.None then
+		//Print("A WAS order not none")
+        self.randomWalkTarget = nil
         return self.IdleState
     end
     
@@ -220,17 +216,22 @@ function BotAI_Alien:WalkAroundState()
         self.randomWalkTarget = player:GetEyePos()
         self.randomWalkTarget.x = self.randomWalkTarget.x + math.random(-8, 8)
         self.randomWalkTarget.z = self.randomWalkTarget.z + math.random(-8, 8)
-
-        local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
-        if ents:GetSize() > 0 then 
-            local index = math.floor(math.random() * ents:GetSize())
-            local target = ents:GetEntityAtIndex(index)
-            self.randomWalkTarget = target:GetEngagementPoint()
+        
+        if (math.random() < .4) then
+            local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
+            if ents:GetSize() > 0 then 
+                local index = math.floor(math.random() * ents:GetSize())
+				local target = ents:GetEntityAtIndex(index)
+				
+				//Print("A WAS random target set to " .. target:GetClassName())
+                self.randomWalkTarget = target:GetEngagementPoint()
+            end
         end
 	end
     
     // bah
     if self:GetBot():MoveToPoint(self.randomWalkTarget, 2.5) or (self:GetStateTime() > kMoveTimeout) then
+		//Print("A WAS destination reached")
         self.randomWalkTarget = nil
         return self.IdleState
     end
@@ -238,7 +239,7 @@ function BotAI_Alien:WalkAroundState()
     //self.orderLocation = randomWalkTarget
     //self.targetReachedRange = 1.0
     //self.orderType = kOrder.Move
-    return self.MoveState
+    return self.WalkAroundState
 end
 
 function BotAI_Alien:MoveState()
@@ -246,14 +247,17 @@ function BotAI_Alien:MoveState()
     self:StateTrace("MoveState")
     
     if self.orderType ~= kOrder.Move and self.orderType ~= kOrder.AttackMove then
+		//Print("A MS not move or attackmove order")
         return self.IdleState
     end
     
     // target reached?
     if self:GetBot():MoveToPoint(self.orderLocation, self.targetReachedRange) or (self:GetStateTime() > kMoveTimeout) then
         if (self.orderType == kOrder.AttackMove) then
+			//Print("A MS reached, attack")
             return self.AttackState
         else
+			//Print("A MS reached, idle")
             return self.IdleState
         end
     end
@@ -281,6 +285,7 @@ function BotAI_Alien:AttackState()
 
     // attack?
     if self.orderType ~= kOrder.Attack then
+		//Print("A AS not attack order")
         return self.IdleState
     end
     
@@ -292,6 +297,7 @@ function BotAI_Alien:AttackState()
         self.attackTimeout = nil
         self.orderTargetId = Entity.invalidId
         self.orderType = kOrder.None
+		//Print("A AS target unavailable or dead")
         return self.IdleState
     end
     
@@ -307,6 +313,10 @@ function BotAI_Alien:AttackState()
         
         self:GetBot():LookAtPoint(selfOrderTarget:GetModelOrigin(), true)
         self:GetBot():MoveForward()
+		
+		if (math.random() < .2) then
+			self:GetBot():Jump()
+		end
         
         self.attackTimeout = Shared.GetTime() + 5
         if (player:GetEyePos() - engagementPoint):GetLength() < 3 then
@@ -321,10 +331,10 @@ function BotAI_Alien:AttackState()
         self.orderLocation = engagementPoint
         self.targetReachedRange = 2.0
         self.orderType = kOrder.AttackMove
+		//Print("A AS too far away, moving closer")
         return self.MoveState
     end
     
-        
     // look at attack target
     self:GetBot():LookAtPoint(selfOrderTarget:GetOrigin(), true)
     
