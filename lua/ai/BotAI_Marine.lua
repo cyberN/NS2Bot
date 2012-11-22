@@ -46,6 +46,11 @@ function BotAI_Marine:OnThink(deltaTime)
 
 	// misc
 	self:TriggerAlerts()
+	
+	// check flashlight
+	if (math.random() < .1) then
+		self:GetBot():Flashlight( self:IsDarkInHere() )
+	end
     
     // super does state machinin'
     return BotAI_Base.OnThink(self, deltaTime)
@@ -53,6 +58,17 @@ end
 
 // chat
 function BotAI_Marine:OnChat(message, playerName, teamOnly)
+end
+
+function BotAI_Base:OnSpawn()
+    self.task = nil
+	self.targetReachedRange = 1.0
+	self:SetState(self.IdleState)
+end
+
+function BotAI_Base:OnDeath()
+    self.task = nil
+	self:SetState(self.DeathState)
 end
 
 //=== Find helpers ============================================================
@@ -176,6 +192,25 @@ end
 
 //=== Misc ====================================================================
 
+function BotAI_Marine:GetLocation()
+	return GetLocationForPoint(self:GetPlayer():GetOrigin())
+end
+
+// check the local powernode if it's destroyed
+function BotAI_Marine:IsDarkInHere()
+	local location = self:GetLocation()
+	if (location) then
+		
+		// find powernode
+		local powerpoint = GetPowerPointForLocation(location:GetName())
+		
+		// find
+		return powerpoint and (powerpoint:GetIsSocketed() and not powerpoint:GetIsPowering())
+	end
+	
+	return false
+end
+
 function BotAI_Marine:TriggerAlerts()
 
     local player = self:GetPlayer()
@@ -221,7 +256,7 @@ function BotAI_Marine:TriggerAlerts()
     end
     
     // ask for orders 
-    if not self.lastOrderTime or self.currentTime - self.lastOrderTime > 360 then
+    if not self.task or self.task:GetDuration() > 180 then
         self.lastAlertTime = self.currentTime
         if math.random() < .5 then
             player:GetTeam():TriggerAlert(kTechId.MarineAlertNeedOrder, player)
@@ -282,6 +317,15 @@ function BotTask:IsDone()
     return self.done
 end 
 
+function BotTask:Equals(other)
+    local a = self.state == other.state
+    local b = self.type  == other.type
+    local c = (not self.target   or self.target   == other.target)
+    local d = (not self.location or self.location == other.location)
+    
+    return a and b and c and d
+end
+
 // check if we've got an order from our commander
 function BotAI_Marine:GetCommanderOrder()
 
@@ -302,20 +346,24 @@ function BotAI_Marine:GetCommanderOrder()
             
             // attack order
             if (orderType == kTechId.Attack) then
-                if (not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed()) then // dont attack destroyed power points
-                    return MakeBotTask(kBotTaskOrders.Attack, orderTarget:GetEngagementPoint(), orderTarget, self.AttackState)
-                end
+               // if (not orderTarget:isa("PowerPoint") or not orderTarget:GetIsDestroyed()) then // dont attack destroyed power points
+                    // check if current task is same
+					//if (self.task and self.task:Type() == kBotTaskOrders.Attack and self.task:Target() == orderTarget) then return end
+					return MakeBotTask(kBotTaskOrders.Attack, orderTarget:GetEngagementPoint(), orderTarget, self.AttackState)
+               // end
             end
             
             // construct order
             if (orderType == kTechId.Construct) then
-                return MakeBotTask(kBotTaskOrders.Construct, orderTarget:GetEngagementPoint(), orderTarget, self.ConstructState)
+                //if (self.task and self.task:Type() == kBotTaskOrders.Construct and self.task:Target() == orderTarget) then return end
+				return MakeBotTask(kBotTaskOrders.Construct, orderTarget:GetEngagementPoint(), orderTarget, self.ConstructState)
             end
             
             // move order
             local orderLocation = order:GetLocation()
             if orderLocation then
-                return MakeBotTask(kBotTaskOrders.Move, orderLocation, nil, self.MoveState)
+                //if (self.task and self.task:Type() == kBotTaskOrders.Move and self.task:Location() == orderLocation) then return end
+				return MakeBotTask(kBotTaskOrders.Move, orderLocation, nil, self.MoveState)
             end
             
         end
@@ -339,7 +387,8 @@ function BotAI_Marine:GetInterruption(busy)
     if (player:GetHealthScalar() < .4) then
         target = self:FindPickupable("Medpack")
         if (target) then
-            return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
+            //if (self.task and self.task:Type() == kBotTaskOrders.Pickup and self.task:Target() == target) then return end
+			return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
         end
     end
     
@@ -347,14 +396,16 @@ function BotAI_Marine:GetInterruption(busy)
     if (self:GetAmmoScalar() < .4) then
         target = self:FindPickupable("AmmoPack")
         if (target) then
-            return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
+            //if (self.task and self.task:Type() == kBotTaskOrders.Pickup and self.task:Target() == target) then return end
+			return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
         end
     end
     
     // check enemy
     target = self:FindMovingTarget()
     if (target) then
-        return MakeBotTask(kBotTaskOrders.Attack, nil, target, self.AttackState)
+        //if (self.task and self.task:Type() == kBotTaskOrders.Attack and self.task:Target() == target) then return end
+		return MakeBotTask(kBotTaskOrders.Attack, nil, target, self.AttackState)
     end
     
     // below are only low priority interruptions
@@ -368,6 +419,7 @@ function BotAI_Marine:GetInterruption(busy)
 		if (not self:HasWeapon("Welder")) then
 			target = self:FindPickupable("Welder") // hier in ich
 			if (target) then
+				//if (self.task and self.task:Type() == kBotTaskOrders.Pickup and self.task:Target() == target) then return end
 				return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
 			end
 		end
@@ -376,6 +428,7 @@ function BotAI_Marine:GetInterruption(busy)
 		if (not self:HasWeapon("Shotgun")) then
 			target = self:FindPickupable("Shotgun")
 			if (target) then
+				//if (self.task and self.task:Type() == kBotTaskOrders.Pickup and self.task:Target() == target) then return end
 				return MakeBotTask(kBotTaskOrders.Pickup, nil, target, self.PickupState)
 			end
 		end
@@ -383,7 +436,8 @@ function BotAI_Marine:GetInterruption(busy)
     // check structure
     target = self:FindStaticTarget()
     if (target) then
-        return MakeBotTask(kBotTaskOrders.Attack, nil, target, self.AttackState)
+        //if (self.task and self.task:Type() == kBotTaskOrders.Attack and self.task:Target() == target) then return end
+		return MakeBotTask(kBotTaskOrders.Attack, nil, target, self.AttackState)
     end
     
     // check exosuit
@@ -446,18 +500,20 @@ end
 function BotAI_Marine:CheckForStateChanges(isBusy)
 
     // check interruption
-    self.task = self:GetInterruption(isBusy)
-    if (self.task) then
-        local newState = self:GetStateForTask(self.task)
+    local newTask = self:GetInterruption(isBusy)
+    if (newTask and (not self.task or not self.task:Equals(newTask))) then
+        self.task = newTask
+        local newState = self:GetStateForTask(newTask)
         if (newState) then 
             return newState
         end
     end
     
     // check commander order
-    self.task = self:GetCommanderOrder()
-    if (self.task) then
-        local newState = self:GetStateForTask(self.task)
+    newTask = self:GetCommanderOrder()
+    if (newTask and (not self.task or not self.task:Equals(newTask))) then
+        self.task = newTask
+        local newState = self:GetStateForTask(newTask)
         if (newState) then 
             return newState
         end
@@ -466,7 +522,7 @@ end
 
 local function EndStateCheckTask(task, expectedMove, defaultState)
     if (task) then
-        if (task:Task() == expectedMove) then
+        if (task:Type() == expectedMove) then
             task:SetDone(true)
             return defaultState
         else
@@ -495,7 +551,9 @@ function BotAI_Marine:IdleState()
     if target then
         self.task = MakeBotTask(kBotTaskOrders.Construct, nil, target, self.ConstructState)
         local newState = self:GetStateForTask(self.task)
-        if (newState) then return newState end
+        if (newState) then 
+            return newState
+        end
     end
     
     // walk around
@@ -596,7 +654,9 @@ function BotAI_Marine:ConstructState()
     
     // target construction done?
     local constructionTarget = self.constructTarget
-    if (HasMixin(constructionTarget, "Construct") and constructionTarget:GetIsBuilt()) then
+    local isBuild = not HasMixin(constructionTarget, "Construct") or constructionTarget:GetIsBuilt()
+    local isPowerNodeHealthy = not constructionTarget:isa("PowerPoint") or (constructionTarget:GetIsSocketed() and constructionTarget:GetHealthScalar() >= 1.0)
+    if (isBuild and isPowerNodeHealthy) then
         //self:GetBot():SayTeam("Target constructed.") // DEBUG
         return EndStateCheckTask(self.task, kBotTaskOrders.Construct, self.IdleState)
     end
@@ -627,7 +687,7 @@ function BotAI_Marine:ConstructState()
         self.moveLocation = engagementPoint
         return self.MoveState
     end
-  
+	
     // look at build object
     self:GetBot():LookAtPoint(engagementPoint, true)
 
@@ -654,27 +714,148 @@ function BotAI_Marine:WeldState()
     */
 end
 
+function BotAI_Marine:GetActiveWeapon()
+    return self:GetPlayer():GetActiveWeapon()
+end
+
+function BotAI_Marine:GetActiveWeaponOutOfAmmo()
+    local weapon = self:GetActiveWeapon()
+    return weapon == nil or (weapon:isa("ClipWeapon") and weapon:GetAmmo() == 0)
+end
+
+function BotAI_Marine:GetPrimaryWeapon()
+    local prim, sec = self:GetWeapons()
+    return prim
+end
+
+function BotAI_Marine:GetSecondaryWeapon()
+    local prim, sec = self:GetWeapons()
+    return sec
+end
+
+function BotAI_Marine:GetPrimaryWeaponOutOfAmmo()
+    local weapon = self:GetPrimaryWeapon()
+    return weapon == nil or (weapon:isa("ClipWeapon") and weapon:GetAmmo() == 0)
+end
+
+function BotAI_Marine:GetSecondaryWeaponOutOfAmmo()
+    local weapon = self:GetSecondaryWeapon()
+    return weapon == nil or (weapon:isa("ClipWeapon") and weapon:GetAmmo() == 0)
+end
+
+function BotAI_Marine:IsActivePrimaryWeapon()
+    return self:GetActiveWeapon() == self:GetPrimaryWeapon()
+end
+
+function BotAI_Marine:IsActiveSecondaryWeapon()
+    return self:GetActiveWeapon() == self:GetSecondaryWeapon()
+end
+
+function BotAI_Marine:GetAttackDistance()
+
+    local activeWeapon = self:GetActiveWeapon()
+    
+    if activeWeapon then
+        return math.min(activeWeapon:GetRange(), 15)
+    end
+    
+    return nil
+end
+
 function BotAI_Marine:AttackState()
 
     self:StateTrace("attack")
 
     // check urgent state changes
     local newState = self:CheckForStateChanges(true)
-    if (newState) then return newState end
+    if (newState) then 
+        self.attackTimeout = nil
+        return newState 
+    end
     
     local attackTarget = self.attackTarget
+    local player = self:GetPlayer()
   
-    // check if dead
-    if ((HasMixin(attackTarget, "Live") and not attackTarget:GetIsAlive()) or attackTarget:GetHealthScalar() <= 0) then
+    // check if went out of range or dead
+    if ( (self.attackTimeout and self.attackTimeout < Shared.GetTime()) or  (HasMixin(attackTarget, "Live") and not attackTarget:GetIsAlive()) or attackTarget:GetHealthScalar() <= 0) then
         //self:GetBot():SayTeam("Target killed.") // DEBUG
+        self.attackTimeout = nil
         return EndStateCheckTask(self.task, kBotTaskOrders.Attack, self.IdleState)
     end
-  
-    // choose weapon
-    local player = self:GetPlayer()
-    local activeWeapon = player:GetActiveWeapon()
-    local outOfAmmo = activeWeapon == nil or (activeWeapon:isa("ClipWeapon") and activeWeapon:GetAmmo() == 0)
-    if attackTarget:isa("Structure") and (activeWeapon == nil or not activeWeapon:isa("Axe")) then
+    
+    // decide on preference
+    if (self.prefersAxe == nil) then
+        self.prefersAxe = math.random() < .5
+    end
+    
+    // taken from Bot_Player.lua
+    local activeWeapon = self:GetActiveWeapon()
+    if activeWeapon then
+        local outOfAmmo = (activeWeapon:isa("ClipWeapon") and (activeWeapon:GetAmmo() == 0))
+    
+        // Some bots switch to axe to take down structures
+        if (GetReceivesStructuralDamage(attackTarget) and self.prefersAxe and not activeWeapon:isa("Axe")) or outOfAmmo then
+        
+            self:GetBot():Weapon3()
+            return self.AttackState
+            
+        elseif attackTarget:isa("Player") and not self:IsActivePrimaryWeapon() and not self:GetPrimaryWeaponOutOfAmmo() then
+        
+            self:GetBot():Weapon1()
+            return self.AttackState
+            
+        // If we're out of ammo in our primary weapon, switch to next weapon (pistol or axe)
+        elseif outOfAmmo then
+        
+            self:GetBot():NextWeapon()
+            return self.AttackState
+            
+        end
+        
+    end
+    
+    // Attack target! TODO: We should have formal point where attack emanates from.
+    local distToTarget = (attackTarget:GetEngagementPoint() - player:GetModelOrigin()):GetLength()
+    local attackDist = self:GetAttackDistance()
+    
+    if activeWeapon and attackDist and (distToTarget < attackDist) then
+    
+        // Make sure we can see target
+        local filter = EntityFilterTwo(player, activeWeapon)
+        local trace = Shared.TraceRay(player:GetEyePos(), attackTarget:GetModelOrigin(), CollisionRep.LOS, PhysicsMask.AllButPCs, filter)
+        if trace.entity == attackTarget then
+        
+            // look at attack target
+            local targetPosition = attackTarget:GetOrigin()
+            targetPosition.x = targetPosition.x + (math.random() - 0.5) * 1.1
+            targetPosition.y = targetPosition.y + (math.random() - 0.5) * 1.1
+            targetPosition.z = targetPosition.z + (math.random() - 0.5) * 1.1
+            
+            self:GetBot():LookAtPoint(targetPosition)
+            self:GetBot():PrimaryAttack()
+            
+            self.attackTimeout = Shared.GetTime() + 5
+            
+        end
+        
+        return self.AttackState
+    
+    else
+        
+        // TODO check if working 
+        
+        self.moveLocation = attackTarget:GetEngagementPoint()
+        self.moveRange = 2.0
+        
+        return self.MoveState
+        
+    end
+    
+    
+    /*
+    
+    // a building should be killed using a knife
+    if isStructure and (activeWeapon == nil or not activeWeapon:isa("Axe")) then
         self:GetBot():Weapon3()
     elseif attackTarget:isa("Player") then
         local primaryWeapon, secondaryWeapon = self:GetWeapons()
@@ -721,7 +902,7 @@ function BotAI_Marine:AttackState()
         self.moveLocation = attackTarget:GetEngagementPoint()
 		self.moveRange = 1.0
 		
-        return self.MoveState
+        return self.IdleState
         
     end
     
@@ -735,11 +916,19 @@ function BotAI_Marine:AttackState()
     self:GetBot():LookAtPoint(targetPosition, melee)
 
     // attack!
-    if math.random() < .6 then
+    //if math.random() < .6 then
         self:GetBot():PrimaryAttack()
-    end
+    //end
     
     return self.AttackState
+    */
+end
+
+function BotAI_Marine:DeathState()
+
+    self:StateTrace("death")
+    
+    return self.DeathState
 end
 
 //=============================================================================

@@ -91,8 +91,7 @@ function BotAI_Base:OnThink(deltaTime)
     // use a state machine to generate a move
 	local currentTime = Shared.GetTime()
 	if self.state == nil then
-		self.state = self.IdleState
-		self.stateEnterTime = currentTime
+	    self:SetState(self.IdleState)
 	end
 	
 	self.stateTime = currentTime - self.stateEnterTime
@@ -101,15 +100,27 @@ function BotAI_Base:OnThink(deltaTime)
 	local newState = self.state(self)
 	
 	if newState ~= self.state then
-		self.stateEnterTime = currentTime
-		self.state = newState
+	    self:SetState(newState)
 	end
 	
 	return true
 end
 
+function BotAI_Base:SetState(newState)
+    if (newState) then
+		self.stateEnterTime = Shared.GetTime()
+		self.state = newState
+    end
+end
+
 // chat
 function BotAI_Base:OnChat(message, playerName, teamOnly)
+end
+
+function BotAI_Base:OnSpawn()
+end
+
+function BotAI_Base:OnDeath()
 end
 
 // === States ===========================================

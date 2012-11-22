@@ -33,6 +33,9 @@ function Bot:Initialize()
 	// mixins
     InitMixin(self, BotAI_PathMixin)
 	InitMixin(self, BotAI_TargetingMixin)
+	
+	self.mFlashlight = false
+    self.mAliveCheck = false
 end
 
 // Get the virtual client object
@@ -67,9 +70,30 @@ function Bot:OnThink(deltaTime)
     move.pitch = player:GetAngles().pitch - player:GetBaseViewAngles().pitch
     self.move = move
 	
+	// check alive status
+	local lifeStatus = player:GetIsAlive()
+	if (lifeStatus ~= self.mAliveCheck) then
+	    self.mAliveCheck = lifeStatus
+	    if (lifeStatus) then
+	        self:OnSpawn()
+	    else
+	        self:OnDeath()
+	    end
+	end
+	
     if Shared.GetDevMode() then
 		self:DebugDrawLineOfSight()
 	end
+end
+
+function Bot:OnSpawn()
+    self.mAliveCheck = true
+	self.mFlashlight = false
+end
+
+function Bot:OnDeath()
+    self.mAliveCheck = false
+	self.mFlashlight = false
 end
 
 function Bot:OnMove()
@@ -149,8 +173,10 @@ end
 function Bot:Flashlight(enabled)
 	if (self.mFlashlight == enabled) then return end
 	
-	elf.move.commands = bit.bor(self.move.commands, Move.ToggleFlashlight)
-	self.mFlashlight = not self.mFlashlight
+	self:SayTeam("now i put my flashlight " .. (enabled and "on" or "off"))
+	
+	self.move.commands = bit.bor(self.move.commands, Move.ToggleFlashlight)
+	self.mFlashlight = enabled
 end
 
 function Bot:LookAtPoint(destination, direct)

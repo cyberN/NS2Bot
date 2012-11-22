@@ -249,49 +249,60 @@ end
 
 function BotAI_Alien:AttackState()
     
-    if self.orderType == kOrder.AttackMove then
-        self.orderType = kOrder.Attack
-    end
+	// silly errors, so let's pcall dis
+	local ok, state = pcall( function(self)
+		
+		if self.orderType == kOrder.AttackMove then
+			self.orderType = kOrder.Attack
+		end
 
-    // attack?
-    if self.orderType ~= kOrder.Attack then
-        return self.IdleState
-    end
-    
-    // still valid?
-    if not self.orderTarget then
-        self.orderTarget = nil
-        return self.IdleState
-    end
-    
-    local player = self:GetPlayer()
-    
-    // as alien move to target
-    local engagementPoint = self.orderTarget:GetEngagementPoint()
-    if (player:GetEyePos() - engagementPoint):GetLengthSquared() > 5 then
-        self.orderLocation = engagementPoint
-        self.targetReachedRange = 1.0
-        self.orderType = kOrder.AttackMove
-        return self.MoveState
-    end
-    
-    // timeout?
-    if self:GetStateTime() > 20 then
-        self.orderLocation = self.orderTarget:GetEngagementPoint()
-		self.targetReachedRange = 1.0
-        self.orderType = kOrder.Move
-        return self.MoveState
-    end
-    
-    // look at attack target
-    self:GetBot():LookAtPoint(self.orderTarget:GetOrigin(), true)
-    
-    // attack!
-    if math.random() < .6 then
-        self:GetBot():PrimaryAttack()
-    end
+		// attack?
+		if self.orderType ~= kOrder.Attack then
+			return self.IdleState
+		end
+		
+		// still valid?
+		if not self.orderTarget then
+			self.orderTarget = nil
+			return self.IdleState
+		end
+		
+		local player = self:GetPlayer()
+		
+		// as alien move to target
+		local engagementPoint = self.orderTarget:GetEngagementPoint()
+		if (player:GetEyePos() - engagementPoint):GetLengthSquared() > 5 then
+			self.orderLocation = engagementPoint
+			self.targetReachedRange = 1.0
+			self.orderType = kOrder.AttackMove
+			return self.MoveState
+		end
+		
+		// timeout?
+		if self:GetStateTime() > 20 then
+			self.orderLocation = self.orderTarget:GetEngagementPoint()
+			self.targetReachedRange = 1.0
+			self.orderType = kOrder.Move
+			return self.MoveState
+		end
+		
+		// look at attack target
+		self:GetBot():LookAtPoint(self.orderTarget:GetOrigin(), true)
+		
+		// attack!
+		if math.random() < .6 then
+			self:GetBot():PrimaryAttack()
+		end
 
-    return self.AttackState
+		return self.AttackState
+	end )
+	
+	if (ok) then
+		return state
+	else
+		self.orderTarget = nil
+		return self.IdleState
+	end
 end
 
 /*

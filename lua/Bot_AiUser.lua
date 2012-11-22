@@ -115,6 +115,20 @@ function BotAIUser:OnThink(deltaTime)
 	return true
 end
 
+function BotAIUser:OnSpawn()
+    Bot.OnSpawn(self)
+    if (self.activeAI) then
+        self.activeAI:OnSpawn()
+    end
+end
+
+function BotAIUser:OnDeath()
+    Bot.OnDeath(self)
+    if (self.activeAI) then
+        self.activeAI:OnDeath()
+    end
+end
+
 function BotAIUser:ChangeAI(newAI)
     if (newAI) then
         if newAI.IsPlayerApplicable(self:GetPlayer()) then
