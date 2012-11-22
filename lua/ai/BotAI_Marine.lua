@@ -636,8 +636,11 @@ function BotAI_Marine:WalkAroundState()
     
     // go to one of our comm stations
     if ( math.random() < .02 ) then
-        randomWalkTarget = self:GetBot():GetCommandStation()
-        trace = false
+		local target = self:GetBot():GetCommandStation()
+		if (target) then
+			randomWalkTarget = target:GetOrigin()
+			trace = false
+		end
     elseif (math.random() < .05) then
         local ents = Shared.GetEntitiesWithClassname(ConditionalValue(math.random() < .5, "TechPoint", "ResourcePoint"))
         if ents:GetSize() > 0 then 
@@ -669,7 +672,7 @@ function BotAI_Marine:WalkAroundState()
 end
 
 function BotAI_Marine:MoveState()
-
+	
     self:StateTrace("move")
     
     // check urgent state changes

@@ -114,6 +114,9 @@ function Bot_OnConsoleSetBots(client, countParam)
     // add more bots
     while table.maxn(botBots) < botCount do
     
+	
+		Print("######################## ADDED A BOT ######################")
+		
         local bot = BotAIUser()
         bot:Initialize()
         bot.client = Server.AddVirtualClient()
@@ -147,6 +150,8 @@ function Bot_OnConsoleSetBots(client, countParam)
             end
         end
         
+		Print("######################## REMOVED A BOT ######################")
+		
         // remove bot
         local bot = botBots[botToRemove]
         Server.DisconnectClient(bot.client)

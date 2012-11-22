@@ -65,6 +65,13 @@ function BotAIUser:OnThink(deltaTime)
 	
 	local player = self:GetPlayer()
 	
+	// if readyroom make us base
+	if (self:IsReadyRoom() and not self.base) then
+		self:ChangeAI( BotAI_Base )
+		self.base = true
+		self.activePlayerClassName = player:GetClassName()
+	end
+	
 	// check class of player
 	if (self.activePlayerClassName ~= player:GetClassName()) then
 	    Print( player:GetName() .. "'s player class has changed from " .. self.activePlayerClassName .. " to " .. player:GetClassName())
@@ -79,8 +86,11 @@ function BotAIUser:OnThink(deltaTime)
 	    self.activePlayerClassName = self:GetPlayer():GetClassName()
 	    
 	    if self:ChangeAI( BotAI_Base ) then
+			self.base = true
 	        return true
 	    end
+		
+		self.base = false
 	    
 	    if self:ChangeAI( BotAI_Marine ) then
 	        return true

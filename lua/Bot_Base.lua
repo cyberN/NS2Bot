@@ -333,27 +333,27 @@ end
 //=== Misc ====================================================================
 
 function Bot:IsMarine()
-	return self:GetPlayer():isa("Marine")
+	return self:GetPlayer():isa("Marine") and self:GetPlayer():GetTeamType() == kMarineTeamType
 end
 
 function Bot:IsJetpackMarine()
-	return self:GetPlayer():isa("JetpackMarine")
+	return self:GetPlayer():isa("JetpackMarine") and self:GetPlayer():GetTeamType() == kMarineTeamType
 end
 
 function Bot:IsExo()
-	return self:GetPlayer():isa("Exo")
+	return self:GetPlayer():isa("Exo") and self:GetPlayer():GetTeamType() == kMarineTeamType
 end
 
 function Bot:IsMarineCommander()
-	return self:GetPlayer():isa("MarineCommander")
+	return self:GetPlayer():isa("MarineCommander") and self:GetPlayer():GetTeamType() == kMarineTeamType
 end
 
 function Bot:IsAlien()
-	return self:GetPlayer():isa("Alien")
+	return self:GetPlayer():isa("Alien") and self:GetPlayer():GetTeamType() == kAlienTeamType
 end
 
 function Bot:IsAlienCommander()
-	return self:GetPlayer():isa("AlienCommander")
+	return self:GetPlayer():isa("AlienCommander") and self:GetPlayer():GetTeamType() == kAlienTeamType
 end
 
 function Bot:IsSpectator()
@@ -361,7 +361,7 @@ function Bot:IsSpectator()
 end
 
 function Bot:IsReadyRoom()
-	return self:GetPlayer():isa("ReadyRoomPlayer")
+	return self:GetPlayer():GetTeamType() ~= kMarineTeamType and self:GetPlayer():GetTeamType() ~= kAlienTeamType
 end
 
 //=============================================================================
@@ -413,6 +413,8 @@ function Bot:GetCommandStation()
     elseif (team == kMarineTeamType) then
         commanderClassName = "CommandStation"
     end
+	
+	if (not commanderClassName) then return end
     
     local ents = Shared.GetEntitiesWithClassname(commanderClassName)    
     local count = ents:GetSize()
