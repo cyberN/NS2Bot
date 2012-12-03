@@ -52,8 +52,6 @@ end
 
 //=============================================================================
 
-
-
 local botBots = { }
 local botMaxCount = 0
 
@@ -66,17 +64,19 @@ local function installOverrides()
 	// override Server.AddChatToHistory so we can listen for incoming chatter
 	_OriginalServerAddChatToHistory = Server.AddChatToHistory
 	function Server.AddChatToHistory(message, playerName, steamId, teamNumber, teamOnly)
-		// call original
-		_OriginalServerAddChatToHistory(message, playerName, steamId, teamNumber, teamOnly)
 		
 		for _, bot in ipairs(botBots) do
 			if (not teamOnly or bot:GetPlayer():GetTeamNumber() == teamNumber) and (playerName ~= bot:GetPlayer():GetName()) then
-				return bot:OnChat(message, playerName, teamOnly)
+				bot:OnChat(message, playerName, teamOnly)
 			end
 		end
+		
+		// call original
+		return _OriginalServerAddChatToHistory(message, playerName, steamId, teamNumber, teamOnly)
 	end
 	
-	// a commander gave us ping (client, {position = Vector}), overriding NetworkMessages_Server.lua:209
+	// a commander gave us ping (client, {position = Vector}), overriding NetworkMessages_Server.lua:209 
+	// TODO won't work, since we can't override network wessage hooks, find solution
 	Server.HookNetworkMessage("CommanderPing", function(client, message)
 
 		local player = client:GetControllingPlayer()
@@ -103,7 +103,7 @@ function Bot_OnConsoleSetBots(client, countParam)
 
     // set max bot count
     if countParam then
-        botMaxCount = math.min(10, math.max(0, tonumber(countParam)))
+        botMaxCount = math.min(32, math.max(0, tonumber(countParam))) // increased max bot count to 32, requested by joemama57
     end
     
     // compute new bot count
@@ -114,7 +114,6 @@ function Bot_OnConsoleSetBots(client, countParam)
     // add more bots
     while table.maxn(botBots) < botCount do
     
-	
 		Print("######################## ADDED A BOT ######################")
 		
         local bot = BotAIUser()
