@@ -51,7 +51,7 @@ function BotAI_Base:Initialize()
             end
         end
     end
-    OnCommandSetName(self:GetClient(), myName)
+    self:GetPlayer():SetName(myName)
     self.deltaTime = 0
 end
 
