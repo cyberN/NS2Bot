@@ -1,13 +1,14 @@
 Natural Selection 2 Bot
-=============
+===============================
 
 The goal is to get an ai controlled player running in NS2, that mimics human players as much as possible :)
 
-
-Installation
------------
+-------------------------------
+	Installation
+-------------------------------
 
 You have two possibilities here:
+
 *	As mod: (recommended)
 	1.	Create a new folder (like ns2bot) inside your Steam/steamapps/common/natural selection 2/
 	2.	Clone this repo into this new folder (make sure this exists: Steam/steamapps/common/natural selection 2/ns2bot/game_setup.xml)
@@ -15,14 +16,15 @@ You have two possibilities here:
 
 *	Simply copy the .lua files to your Steam/steamapps/common/natural selection 2/ns2/lua directory
 
-Usage
------
+-------------------------------
+	Usage
+-------------------------------
 
-Ingame, open the console and "addbot n" to add n bots or "setbots n" to add/remove bots to have n active ones
+Ingame, open the console [`] and type "setbots n" to increase/decrease the number of bots in the server.
 
-
-Changelog
-------------
+-------------------------------
+	Changelog
+-------------------------------
 
 * Version 0.5.1
 	* Fixed to work with NS2 build 241
