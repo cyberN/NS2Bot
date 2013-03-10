@@ -12,6 +12,7 @@ You have two possibilities here:
 	1.	Create a new folder (like ns2bot) inside your Steam/steamapps/common/natural selection 2/
 	2.	Clone this repo into this new folder (make sure this exists: Steam/steamapps/common/natural selection 2/ns2bot/game_setup.xml)
 	3.	In Steam right click on NS2 -> properties -> set launch options, put -game -foldername- in there (like -game ns2bot)
+
 *	Simply copy the .lua files to your Steam/steamapps/common/natural selection 2/ns2/lua directory
 
 Usage
@@ -23,6 +24,9 @@ Ingame, open the console and "addbot n" to add n bots or "setbots n" to add/remo
 Changelog
 ------------
 
+* Version 0.5.1
+	* Fixed to work with NS2 build 241
+	
 * Version 0.5
 	* Fixed to work with NS2 build 229
 	* Changed pathfinding to use BotGorge's BotAIPathMixin by ZycaR
